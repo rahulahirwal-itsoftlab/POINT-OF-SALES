@@ -50,8 +50,9 @@ export class AuthService {
 
     const { accessToken, refreshToken, refreshExpiresAt } = await this.generateAndSaveTokens(principal, requestMeta);
 
-    await this.touchLastLogin(principal);
-    await this.recordLoginSuccess(principal, requestMeta);
+    // Non-blocking audit & login metadata updates
+    void this.touchLastLogin(principal).catch(() => {});
+    void this.recordLoginSuccess(principal, requestMeta).catch(() => {});
 
     return {
       accessToken,
@@ -217,15 +218,17 @@ export class AuthService {
   }
 
   private async findPrincipalForLogin(email: string): Promise<PrincipalWithPassword | null> {
-    const superAdmin = await this.repository.findSuperAdminByEmail(email);
+    const [superAdmin, admin, employee] = await Promise.all([
+      this.repository.findSuperAdminByEmail(email),
+      this.repository.findAdminByEmail(email),
+      this.repository.findEmployeeByEmail(email),
+    ]);
+
     if (superAdmin?.role === "SUPER_ADMIN") {
       return { ...superAdmin, subjectType: "SUPER_ADMIN" };
     }
 
-    const admin = await this.repository.findAdminByEmail(email);
     if (admin) return { ...admin, subjectType: "ADMIN" };
-
-    const employee = await this.repository.findEmployeeByEmail(email);
     if (employee) return { ...employee, subjectType: "EMPLOYEE" };
 
     return null;

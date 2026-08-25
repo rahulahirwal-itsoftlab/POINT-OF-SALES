@@ -1,7 +1,7 @@
-const defaultApiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api/v1";
+import { getApiBaseUrl } from "@/lib/api/client";
 
 function backendOrigin() {
-  return defaultApiUrl.replace(/\/api\/v1\/?$/, "");
+  return getApiBaseUrl().replace(/\/api\/v1\/?$/, "");
 }
 
 export function getImageUrl(url?: string | null): string {

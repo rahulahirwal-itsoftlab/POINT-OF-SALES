@@ -5,6 +5,10 @@ import { env } from "../../config/env.js";
 const ACCESS_COOKIE_NAME = "pos_access_token";
 const REFRESH_COOKIE_NAME = "pos_refresh_token";
 
+const isProduction = env.NODE_ENV === "production";
+const sameSitePolicy = isProduction ? "None" : "Lax";
+const securePolicy = isProduction;
+
 export function getAccessToken(c: Context) {
   const authHeader = c.req.header("Authorization");
   if (authHeader?.startsWith("Bearer ")) {
@@ -23,8 +27,8 @@ export function setAuthCookies(c: Context, accessToken: string, refreshToken: st
   // Refresh token cookie (long-lived)
   setCookie(c, REFRESH_COOKIE_NAME, refreshToken, {
     httpOnly: true,
-    secure: env.NODE_ENV === "production",
-    sameSite: "Lax",
+    secure: securePolicy,
+    sameSite: sameSitePolicy,
     path: "/",
     expires: refreshExpiresAt,
     maxAge: Math.floor((refreshExpiresAt.getTime() - Date.now()) / 1000),
@@ -34,8 +38,8 @@ export function setAuthCookies(c: Context, accessToken: string, refreshToken: st
 export function setAccessCookie(c: Context, accessToken: string) {
   setCookie(c, ACCESS_COOKIE_NAME, accessToken, {
     httpOnly: true,
-    secure: env.NODE_ENV === "production",
-    sameSite: "Lax",
+    secure: securePolicy,
+    sameSite: sameSitePolicy,
     path: "/",
     maxAge: 15 * 60, // 15 minutes
   });
@@ -44,13 +48,13 @@ export function setAccessCookie(c: Context, accessToken: string) {
 export function clearAuthCookies(c: Context) {
   deleteCookie(c, ACCESS_COOKIE_NAME, {
     path: "/",
-    secure: env.NODE_ENV === "production",
-    sameSite: "Lax",
+    secure: securePolicy,
+    sameSite: sameSitePolicy,
   });
-  
+
   deleteCookie(c, REFRESH_COOKIE_NAME, {
     path: "/",
-    secure: env.NODE_ENV === "production",
-    sameSite: "Lax",
+    secure: securePolicy,
+    sameSite: sameSitePolicy,
   });
 }

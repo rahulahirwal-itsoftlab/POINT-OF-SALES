@@ -21,9 +21,10 @@ async function startServer() {
     {
       fetch: app.fetch,
       port: env.PORT,
+      hostname: "0.0.0.0",
     },
     (info) => {
-      logger.info({ port: info.port }, `Backend API listening at http://localhost:${info.port}`);
+      logger.info({ port: info.port, address: info.address }, `Backend API listening at http://${info.address}:${info.port}`);
     },
   );
 

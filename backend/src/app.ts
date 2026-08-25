@@ -1,3 +1,5 @@
+import fs from "node:fs";
+import path from "node:path";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { secureHeaders } from "hono/secure-headers";
@@ -18,20 +20,26 @@ app.use("*", requestId());
 // 2. Security headers
 app.use("*", secureHeaders());
 
+const configuredOrigins = env.CORS_ORIGIN.split(",").map((s) => s.trim());
+
+function isOriginAllowed(origin: string | undefined): boolean {
+  if (!origin) return true;
+  if (configuredOrigins.includes(origin)) return true;
+  if (origin.startsWith("http://localhost:") || origin.startsWith("http://127.0.0.1:")) return true;
+  if (origin.endsWith(".onrender.com")) return true;
+  return false;
+}
+
 // 3. CORS
 app.use(
   "*",
   cors({
     origin: (origin) => {
-      if (!origin) return env.CORS_ORIGIN;
-      if (
-        origin === env.CORS_ORIGIN ||
-        origin.startsWith("http://localhost:") ||
-        origin.startsWith("http://127.0.0.1:")
-      ) {
+      if (!origin) return configuredOrigins[0] || env.CORS_ORIGIN;
+      if (isOriginAllowed(origin)) {
         return origin;
       }
-      return env.CORS_ORIGIN;
+      return configuredOrigins[0] || env.CORS_ORIGIN;
     },
     allowHeaders: ["Content-Type", "X-Restaurant-Id", "X-Request-ID", "Authorization"],
     allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
@@ -57,13 +65,7 @@ app.use("*", async (c, next) => {
   }
 
   const origin = c.req.header("origin");
-  const isAllowedOrigin =
-    !origin ||
-    origin === env.CORS_ORIGIN ||
-    origin.startsWith("http://localhost:") ||
-    origin.startsWith("http://127.0.0.1:");
-
-  if (!isAllowedOrigin) {
+  if (!isOriginAllowed(origin)) {
     throw new AppError("Request origin is not allowed", 403, "CSRF_ORIGIN_FORBIDDEN");
   }
 
@@ -71,6 +73,10 @@ app.use("*", async (c, next) => {
 });
 
 // Static file serving for uploaded local images (/uploads/*)
+const publicUploadsDir = path.resolve(process.cwd(), "public/uploads");
+if (!fs.existsSync(publicUploadsDir)) {
+  fs.mkdirSync(publicUploadsDir, { recursive: true });
+}
 app.use("/uploads/*", serveStatic({ root: "./public" }));
 
 // Health check — does not require auth, returns basic database connectivity

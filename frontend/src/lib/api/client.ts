@@ -19,7 +19,16 @@ import { isLogoutInProgress } from "@/lib/auth/session-state";
 export { getImageUrl } from "@/lib/images/image-url";
 import { frontendLogger } from "@/lib/logger";
 
-const defaultApiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api/v1";
+export function getApiBaseUrl(): string {
+  const rawUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api/v1";
+  const trimmed = rawUrl.trim().replace(/\/+$/, "");
+  if (trimmed.endsWith("/api/v1")) {
+    return trimmed;
+  }
+  return `${trimmed}/api/v1`;
+}
+
+const defaultApiUrl = getApiBaseUrl();
 
 export const apiClient = axios.create({
   baseURL: defaultApiUrl,

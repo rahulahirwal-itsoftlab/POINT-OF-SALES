@@ -1,5 +1,6 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { getApiBaseUrl } from "@/lib/api/client";
 import type { AuthUser } from "../types/auth.types";
 
 type ApiSuccess<T> = {
@@ -13,8 +14,6 @@ type ApiError = {
     code?: string;
   };
 };
-
-const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000/api/v1";
 
 function loginRedirect(nextPath: string): never {
   redirect(`/login?next=${encodeURIComponent(nextPath)}`);
@@ -47,7 +46,7 @@ export async function requireCurrentUser(nextPath: string): Promise<AuthUser> {
 
   let response: Response;
   try {
-    response = await fetch(`${apiUrl}/auth/me`, {
+    response = await fetch(`${getApiBaseUrl()}/auth/me`, {
       headers: {
         cookie: cookieHeader,
       },

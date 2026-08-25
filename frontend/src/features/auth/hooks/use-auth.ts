@@ -10,6 +10,7 @@ export function useCurrentUser() {
     queryKey: ["auth", "me"],
     queryFn: getCurrentUser,
     retry: false,
+    staleTime: 5 * 60 * 1000,
   });
 }
 
