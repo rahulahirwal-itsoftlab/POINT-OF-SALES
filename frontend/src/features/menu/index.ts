@@ -1,0 +1,1 @@
+export const menuFeature = "menu";

@@ -1,0 +1,83 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1786952253719,
+      "tag": "0000_wonderful_salo",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1786960693436,
+      "tag": "0001_silent_jane_foster",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1786960000000,
+      "tag": "0002_super_admin_audit_notification_links",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1787040000000,
+      "tag": "0003_organization_tenant_boundary",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1787043600000,
+      "tag": "0004_order_items_tenant_boundary",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1787047200000,
+      "tag": "0005_subscription_currency",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1787050800000,
+      "tag": "0006_remove_restaurant_admin_invite_default",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1787137200000,
+      "tag": "0007_restaurant_business_profile",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1787208000000,
+      "tag": "0008_menu_item_cloudinary_public_id",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1787294400000,
+      "tag": "0009_subscription_plan_role_limits_snapshots",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1787380800000,
+      "tag": "0010_subscription_plan_number_sequence",
+      "breakpoints": true
+    }
+  ]
+}

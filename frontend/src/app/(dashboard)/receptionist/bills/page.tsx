@@ -1,0 +1,5 @@
+import { ReceptionistBillsPage } from "@/features/staff-pos/components";
+
+export default function Page() {
+  return <ReceptionistBillsPage />;
+}

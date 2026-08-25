@@ -1,0 +1,1 @@
+ALTER TABLE "admins" ALTER COLUMN "status" SET DEFAULT 'ACTIVE';

@@ -1,0 +1,19 @@
+{
+  "name": "restaurant-pos",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Enterprise multi-tenant restaurant POS SaaS platform.",
+  "workspaces": [
+    "frontend",
+    "backend"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspaces",
+    "build": "npm run build --workspaces",
+    "lint": "npm run lint --workspaces",
+    "typecheck": "npm run typecheck --workspaces"
+  },
+  "engines": {
+    "node": ">=20.11.0"
+  }
+}

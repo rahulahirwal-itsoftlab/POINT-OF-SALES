@@ -1,0 +1,37 @@
+{
+  "name": "@restaurant-pos/backend",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "dev:free": "npx kill-port 4000",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/server.js",
+    "lint": "eslint src --ext .ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:push": "drizzle-kit push",
+    "db:seed": "tsx src/db/seed/index.ts",
+    "db:verify-schema": "tsx src/db/verify-schema.ts"
+  },
+  "dependencies": {
+    "@hono/node-server": "^1.13.7",
+    "argon2": "^0.41.1",
+    "drizzle-orm": "^0.36.4",
+    "hono": "^4.6.9",
+    "jose": "^5.9.6",
+    "pg": "^8.13.1",
+    "pino": "^9.5.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "^22.9.0",
+    "@types/pg": "^8.11.10",
+    "drizzle-kit": "^0.27.1",
+    "eslint": "^9.14.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.6.3"
+  }
+}

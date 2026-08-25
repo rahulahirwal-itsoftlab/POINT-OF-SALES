@@ -1,0 +1,168 @@
+{
+  "info": {
+    "name": "POS Super Admin API",
+    "description": "Collection for all Super Admin operations",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Authentication",
+      "item": [
+        {
+          "name": "Super Admin Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.success && jsonData.data && jsonData.data.accessToken) {",
+                  "    pm.environment.set(\"accessToken\", jsonData.data.accessToken);",
+                  "}",
+                  "if (jsonData.success && jsonData.data && jsonData.data.refreshToken) {",
+                  "    pm.environment.set(\"referenceToken\", jsonData.data.refreshToken);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin.pos@gmail.com\",\n  \"password\": \"Admin@1234\",\n  \"deviceInfo\": {\n    \"userAgent\": \"PostmanRuntime\",\n    \"ipAddress\": \"127.0.0.1\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "auth", "login"]
+            }
+          }
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{referenceToken}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/logout",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "auth", "logout"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Subscriptions & Licenses",
+      "item": [
+        {
+          "name": "List Subscriptions",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/super-admin/subscriptions",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "super-admin", "subscriptions"]
+            }
+          }
+        },
+        {
+          "name": "List Licenses",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/super-admin/licenses",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "super-admin", "licenses"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Dashboard & Metrics",
+      "item": [
+        {
+          "name": "Dashboard Overview",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/super-admin/dashboard",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "super-admin", "dashboard"]
+            }
+          }
+        },
+        {
+          "name": "Revenue List",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/super-admin/revenue",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "super-admin", "revenue"]
+            }
+          }
+        },
+        {
+          "name": "Audit Logs",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/super-admin/audit-logs",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "super-admin", "audit-logs"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
