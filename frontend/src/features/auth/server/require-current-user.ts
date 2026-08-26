@@ -39,6 +39,7 @@ export function getDashboardForRole(role: AuthUser["role"]): string {
 export async function requireCurrentUser(nextPath: string): Promise<AuthUser> {
   const cookieStore = await cookies();
   const cookieHeader = cookieStore.toString();
+  const token = cookieStore.get("pos_access_token");
 
   if (!cookieHeader) {
     loginRedirect(nextPath);
@@ -48,9 +49,9 @@ export async function requireCurrentUser(nextPath: string): Promise<AuthUser> {
   try {
     response = await fetch(`${getApiBaseUrl()}/auth/me`, {
       headers: {
-        cookie: cookieHeader,
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
       },
-      cache: "no-store",
     });
   } catch {
     loginRedirect(nextPath);
@@ -72,7 +73,9 @@ export async function requireCurrentUser(nextPath: string): Promise<AuthUser> {
     loginRedirect(nextPath);
   }
 
-  const payload = (await response.json()) as ApiSuccess<{ user: AuthUser }> | ApiError;
+  const payload = (await response.json()) as
+    | ApiSuccess<{ user: AuthUser }>
+    | ApiError;
   if (!payload.success) {
     loginRedirect(nextPath);
   }
@@ -94,7 +97,9 @@ export async function requireSuperAdmin(nextPath: string): Promise<AuthUser> {
   return user;
 }
 
-export async function requireRestaurantAdmin(nextPath: string): Promise<AuthUser> {
+export async function requireRestaurantAdmin(
+  nextPath: string,
+): Promise<AuthUser> {
   const user = await requireCurrentUser(nextPath);
 
   if (user.status !== "ACTIVE") {
@@ -108,14 +113,20 @@ export async function requireRestaurantAdmin(nextPath: string): Promise<AuthUser
   return user;
 }
 
-export async function requireRole(nextPath: string, roles: AuthUser["role"][]): Promise<AuthUser> {
+export async function requireRole(
+  nextPath: string,
+  roles: AuthUser["role"][],
+): Promise<AuthUser> {
   const user = await requireCurrentUser(nextPath);
 
   if (user.status !== "ACTIVE") {
     redirect("/login?reason=forbidden");
   }
 
-  if (!roles.includes(user.role) || (user.role !== "SUPER_ADMIN" && !user.restaurantIds?.length)) {
+  if (
+    !roles.includes(user.role) ||
+    (user.role !== "SUPER_ADMIN" && !user.restaurantIds?.length)
+  ) {
     redirect(getDashboardForRole(user.role));
   }
 
