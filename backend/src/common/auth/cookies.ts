@@ -1,13 +1,15 @@
 import type { Context } from "hono";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
-// import { env } from "../../config/env.js";
+import { env } from "../../config/env.js";
 
 const ACCESS_COOKIE_NAME = "pos_access_token";
 const REFRESH_COOKIE_NAME = "pos_refresh_token";
 
-const isProduction = false
-const sameSitePolicy = isProduction ? "Lax" : "Lax";
+const isProduction = env.NODE_ENV === "production";
+const sameSitePolicy = isProduction ? "None" : "Lax";
 const securePolicy = isProduction;
+
+console.log("production:",isProduction,"sameSitePolicy:",sameSitePolicy,"securePolicy:",securePolicy)
 
 export function getAccessToken(c: Context) {
   const authHeader = c.req.header("Authorization");
