@@ -16,7 +16,7 @@ function defaultRouteForRole(role?: string) {
   if (role === "WAITER") return "/waiter/dashboard";
   if (role === "KITCHEN") return "/kitchen/orders";
   if (role === "RECEPTION") return "/receptionist/dashboard";
-  return "/dashboard";
+  return "/super-admin/dashboard";
 }
 
 function safeNextPath(value: string | null) {
@@ -25,6 +25,20 @@ function safeNextPath(value: string | null) {
   if (value.startsWith("//")) return null;
   if (value === "/login") return null;
   return value;
+}
+
+function resolveRedirectPath(nextPath: string | null, role?: string) {
+  const defaultRoute = defaultRouteForRole(role);
+  if (!nextPath || nextPath === "/dashboard") {
+    return defaultRoute;
+  }
+  if (role === "SUPER_ADMIN" && (nextPath.startsWith("/super-admin") || nextPath.startsWith("/dashboard"))) return nextPath;
+  if (role === "RESTAURANT_ADMIN" && (nextPath.startsWith("/restaurant-admin") || nextPath.startsWith("/admin") || nextPath.startsWith("/dashboard"))) return nextPath;
+  if (role === "WAITER" && (nextPath.startsWith("/waiter") || nextPath.startsWith("/dashboard"))) return nextPath;
+  if (role === "KITCHEN" && (nextPath.startsWith("/kitchen") || nextPath.startsWith("/dashboard"))) return nextPath;
+  if (role === "RECEPTION" && (nextPath.startsWith("/reception") || nextPath.startsWith("/dashboard"))) return nextPath;
+  
+  return defaultRoute;
 }
 
 export function LoginForm() {
@@ -52,7 +66,8 @@ export function LoginForm() {
   useEffect(() => {
     const user = currentUser.data?.data?.user;
     if (!user) return;
-    router.replace(nextPath ?? defaultRouteForRole(user.role));
+    const targetRoute = resolveRedirectPath(nextPath, user.role);
+    router.replace(targetRoute);
   }, [currentUser.data, nextPath, router]);
 
   return (

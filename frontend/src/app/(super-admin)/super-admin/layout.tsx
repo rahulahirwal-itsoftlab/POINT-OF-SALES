@@ -5,3 +5,4 @@ export default async function SuperAdminLayout({ children }: { children: React.R
   const user = await requireSuperAdmin("/super-admin/dashboard");
   return <SuperAdminShell user={user}>{children}</SuperAdminShell>;
 }
+

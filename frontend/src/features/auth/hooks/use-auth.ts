@@ -19,8 +19,20 @@ export function useLogin() {
 
   return useMutation({
     mutationFn: (values: LoginFormValues) => login(values),
-    onSuccess: async () => {
+    onSuccess: async (data) => {
       finishLogout();
+      const accessToken = data?.data?.accessToken;
+      const refreshToken = data?.data?.referenceToken;
+      if (typeof document !== "undefined") {
+        const isHttps = window.location.protocol === "https:";
+        const secureFlag = isHttps ? "; Secure" : "";
+        if (accessToken) {
+          document.cookie = `pos_access_token=${accessToken}; Path=/; SameSite=Lax${secureFlag}`;
+        }
+        if (refreshToken) {
+          document.cookie = `pos_refresh_token=${refreshToken}; Path=/; SameSite=Lax${secureFlag}`;
+        }
+      }
       await queryClient.invalidateQueries({ queryKey: ["auth", "me"] });
     },
   });
@@ -33,6 +45,10 @@ export function useLogout() {
     mutationFn: logout,
     onMutate: async () => {
       beginLogout();
+      if (typeof document !== "undefined") {
+        document.cookie = "pos_access_token=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT";
+        document.cookie = "pos_refresh_token=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT";
+      }
       await queryClient.cancelQueries();
     },
     onSuccess: async () => {
@@ -40,6 +56,10 @@ export function useLogout() {
     },
     onError: () => {
       finishLogout();
+      if (typeof document !== "undefined") {
+        document.cookie = "pos_access_token=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT";
+        document.cookie = "pos_refresh_token=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT";
+      }
       queryClient.clear();
     },
   });

@@ -26,7 +26,7 @@ function isOriginAllowed(origin: string | undefined): boolean {
   if (!origin) return true;
   if (configuredOrigins.includes(origin)) return true;
   if (origin.startsWith("http://localhost:") || origin.startsWith("http://127.0.0.1:")) return true;
-  if (origin.endsWith(".onrender.com")) return true;
+  if (origin.endsWith(".onrender.com") || origin.endsWith(".vercel.app")) return true;
   return false;
 }
 

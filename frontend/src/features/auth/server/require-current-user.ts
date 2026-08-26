@@ -38,19 +38,26 @@ export function getDashboardForRole(role: AuthUser["role"]): string {
 
 export async function requireCurrentUser(nextPath: string): Promise<AuthUser> {
   const cookieStore = await cookies();
+  const accessToken = cookieStore.get("pos_access_token")?.value;
   const cookieHeader = cookieStore.toString();
 
-  if (!cookieHeader) {
+  if (!cookieHeader && !accessToken) {
     loginRedirect(nextPath);
+  }
+
+  const reqHeaders: Record<string, string> = {};
+  if (cookieHeader) {
+    reqHeaders.cookie = cookieHeader;
+  }
+  if (accessToken) {
+    reqHeaders.authorization = `Bearer ${accessToken}`;
   }
 
   let response: Response;
   try {
     response = await fetch(`${getApiBaseUrl()}/auth/me`, {
       credentials: "include",
-      headers: {
-        cookie: cookieHeader,
-      },
+      headers: reqHeaders,
       cache: "no-store",
     });
   } catch {
