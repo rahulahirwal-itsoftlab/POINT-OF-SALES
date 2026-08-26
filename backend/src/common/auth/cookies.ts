@@ -1,11 +1,11 @@
 import type { Context } from "hono";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
-import { env } from "../../config/env.js";
+// import { env } from "../../config/env.js";
 
 const ACCESS_COOKIE_NAME = "pos_access_token";
 const REFRESH_COOKIE_NAME = "pos_refresh_token";
 
-const isProduction = env.NODE_ENV === "production";
+const isProduction = false
 const sameSitePolicy = isProduction ? "Lax" : "Lax";
 const securePolicy = isProduction;
 
@@ -41,7 +41,7 @@ export function setAccessCookie(c: Context, accessToken: string) {
     secure: securePolicy,
     sameSite: sameSitePolicy,
     path: "/",
-    maxAge: 15 * 60, // 15 minutes
+    maxAge: 3600 * 60, // 15 minutes
   });
 }
 
