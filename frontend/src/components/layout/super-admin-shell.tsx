@@ -5,7 +5,6 @@ import { usePathname, useRouter } from "next/navigation";
 import {
   Bell,
   Building2,
-  CreditCard,
   Gauge,
   LogOut,
   Menu,
@@ -28,12 +27,12 @@ const items = [
   { label: "Restaurants", href: "/super-admin/restaurants", icon: Building2 },
   { label: "Subscriptions", href: "/super-admin/subscriptions", icon: Receipt },
   { label: "Licenses", href: "/super-admin/licenses", icon: ShieldCheck },
-  { label: "Revenue", href: "/super-admin/revenue", icon: CreditCard },
   { label: "Notifications", href: "/super-admin/notifications", icon: Bell },
   { label: "Settings", href: "/super-admin/settings", icon: Settings },
 ] as const;
 
 function titleForPath(pathname: string) {
+  if (pathname.startsWith("/super-admin/revenue")) return "Revenue";
   const current = [...items].sort((a, b) => b.href.length - a.href.length).find((item) => pathname.startsWith(item.href));
   return current?.label ?? "Super Admin";
 }

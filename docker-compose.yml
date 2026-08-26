@@ -43,7 +43,7 @@ services:
     depends_on:
       - backend
     environment:
-      NEXT_PUBLIC_API_URL: http://localhost:4000/api
+      NEXT_PUBLIC_API_URL: http://localhost:4000/api/v1
       NEXT_PUBLIC_APP_NAME: Restaurant POS
     ports:
       - "3000:3000"
