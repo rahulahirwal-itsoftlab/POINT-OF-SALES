@@ -6,7 +6,7 @@ const ACCESS_COOKIE_NAME = "pos_access_token";
 const REFRESH_COOKIE_NAME = "pos_refresh_token";
 
 const isProduction = env.NODE_ENV === "production";
-const sameSitePolicy = isProduction ? "None" : "Lax";
+const sameSitePolicy = isProduction ? "Lax" : "Lax";
 const securePolicy = isProduction;
 
 export function getAccessToken(c: Context) {
