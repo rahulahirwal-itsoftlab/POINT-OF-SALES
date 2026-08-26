@@ -9,6 +9,7 @@ async function run() {
   await client.connect();
   try {
     await client.query("SET search_path TO public");
+    
     const sqlString = fs.readFileSync("./src/db/migrations/0000_wonderful_salo.sql", "utf8");
     const statements = sqlString.split("--> statement-breakpoint");
     for (const stmt of statements) {
