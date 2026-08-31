@@ -12,6 +12,8 @@ import {
   getRestaurantAdminStaff,
   getRestaurantAdminStaffDetail,
   getRestaurantAdminSubscription,
+  getRestaurantAdminAvailablePlans,
+  renewRestaurantAdminSubscription,
   markAllRestaurantAdminNotificationsRead,
   markRestaurantAdminNotificationRead,
   updateRestaurantAdminStaff,
@@ -78,6 +80,23 @@ export function useRestaurantAdminBills(params: ListParams) {
 
 export function useRestaurantAdminSubscription() {
   return useQuery({ queryKey: queryKeys.restaurantAdminSubscription, queryFn: getRestaurantAdminSubscription });
+}
+
+export function useRestaurantAdminAvailablePlans() {
+  return useQuery({ queryKey: queryKeys.restaurantAdminAvailablePlans, queryFn: getRestaurantAdminAvailablePlans });
+}
+
+export function useRenewRestaurantAdminSubscription() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ planId, billingCycle }: { planId: string; billingCycle: "MONTHLY" | "YEARLY" }) =>
+      renewRestaurantAdminSubscription({ planId, billingCycle }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.restaurantAdminSubscription });
+      queryClient.invalidateQueries({ queryKey: queryKeys.restaurantAdminAvailablePlans });
+      queryClient.invalidateQueries({ queryKey: ["auth", "me"] });
+    },
+  });
 }
 
 export function useRestaurantAdminAuditLogs(params: ListParams) {

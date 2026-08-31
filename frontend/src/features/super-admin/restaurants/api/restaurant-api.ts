@@ -25,6 +25,21 @@ export async function createRestaurant(input: CreateRestaurantInput) {
   return response.data;
 }
 
+export async function uploadRestaurantLogo(file: File) {
+  const formData = new FormData();
+  formData.append("file", file);
+  const response = await apiClient.post<{ success: boolean; data: { imageUrl: string; imagePublicId?: string } }>(
+    "/super-admin/restaurants/upload-logo",
+    formData,
+    {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    }
+  );
+  return response.data;
+}
+
 export async function updateRestaurant(id: string, input: UpdateRestaurantInput) {
   const response = await apiClient.patch(`/super-admin/restaurants/${id}`, input);
   return response.data;

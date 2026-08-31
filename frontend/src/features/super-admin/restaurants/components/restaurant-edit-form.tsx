@@ -4,17 +4,20 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
-import { getRestaurant, updateRestaurant, updateSubscription } from "../api/restaurant-api";
+import { getRestaurant, updateRestaurant, updateSubscription, uploadRestaurantLogo } from "../api/restaurant-api";
 import type { UpdateRestaurantInput } from "../types/restaurant.types";
 import { extractApiError } from "@/lib/api/client";
 import { queryKeys } from "@/lib/query/query-keys";
 import { LoadingSkeleton } from "@/components/common/loading-skeleton";
 import { ErrorState } from "@/components/common/error-state";
+import { RestaurantLogoUploader } from "@/components/common/restaurant-logo-uploader";
 
 export function RestaurantEditForm({ id }: { id: string }) {
   const router = useRouter();
   const queryClient = useQueryClient();
   const [submitting, setSubmitting] = useState(false);
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ["super-admin", "restaurants", id],
@@ -40,6 +43,7 @@ export function RestaurantEditForm({ id }: { id: string }) {
     timezone: "Asia/Kolkata",
     currency: "INR",
     status: "ACTIVE",
+    logo: "",
     // Subscription fields
     subscriptionId: "",
     price: "",
@@ -51,7 +55,7 @@ export function RestaurantEditForm({ id }: { id: string }) {
 
   useEffect(() => {
     if (detail?.restaurant) {
-      const r = detail.restaurant;
+      const r = detail.restaurant as typeof detail.restaurant & { logo?: string | null };
       const sub = detail.currentSubscription?.subscription;
       setForm({
         name: r.name || "",
@@ -70,6 +74,7 @@ export function RestaurantEditForm({ id }: { id: string }) {
         timezone: r.timezone || "Asia/Kolkata",
         currency: r.currency || "INR",
         status: r.status || "ACTIVE",
+        logo: r.logo || "",
         subscriptionId: sub?.id || "",
         price: sub?.price ? String(sub.price) : "",
         billingCycle: sub?.billingCycle || "MONTHLY",
@@ -87,6 +92,25 @@ export function RestaurantEditForm({ id }: { id: string }) {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setSubmitting(true);
+
+    let finalLogoUrl = form.logo;
+    if (logoFile) {
+      setUploadingLogo(true);
+      try {
+        const uploadRes = await uploadRestaurantLogo(logoFile);
+        if (uploadRes?.data?.imageUrl) {
+          finalLogoUrl = uploadRes.data.imageUrl;
+        }
+      } catch (err) {
+        toast.error("Unable to upload restaurant logo. " + extractApiError(err).message);
+        setSubmitting(false);
+        setUploadingLogo(false);
+        return;
+      } finally {
+        setUploadingLogo(false);
+      }
+    }
+
     try {
       // 1. Update restaurant details
       await updateRestaurant(id, {
@@ -107,6 +131,7 @@ export function RestaurantEditForm({ id }: { id: string }) {
           timezone: form.timezone,
           currency: form.currency,
           status: form.status as NonNullable<UpdateRestaurantInput["restaurant"]>["status"],
+          logo: finalLogoUrl || undefined,
         },
       });
 
@@ -123,6 +148,7 @@ export function RestaurantEditForm({ id }: { id: string }) {
 
       await queryClient.invalidateQueries({ queryKey: queryKeys.restaurants });
       await queryClient.invalidateQueries({ queryKey: ["super-admin", "restaurants", id] });
+      await queryClient.invalidateQueries({ queryKey: ["auth", "me"] });
       toast.success("Restaurant and subscription updated successfully.");
       router.push("/super-admin/restaurants");
     } catch (err) {
@@ -160,6 +186,18 @@ export function RestaurantEditForm({ id }: { id: string }) {
           <label className={labelClass}>Cuisine Type<input className={inputClass} value={form.cuisineType} onChange={(e) => update("cuisineType", e.target.value)} /></label>
           <label className={labelClass}>Timezone *<input required className={inputClass} value={form.timezone} onChange={(e) => update("timezone", e.target.value)} /></label>
           <label className={labelClass}>Currency *<input required className={inputClass} value={form.currency} onChange={(e) => update("currency", e.target.value.toUpperCase())} /></label>
+          <div className="md:col-span-2">
+            <RestaurantLogoUploader
+              value={form.logo}
+              selectedFile={logoFile}
+              onFileSelect={(file) => setLogoFile(file)}
+              onRemoveLogo={() => {
+                setLogoFile(null);
+                update("logo", "");
+              }}
+              isUploading={uploadingLogo}
+            />
+          </div>
         </div>
       </section>
 

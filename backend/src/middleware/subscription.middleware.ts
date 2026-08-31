@@ -11,6 +11,11 @@ export const requireActiveSubscription: MiddlewareHandler = async (c, next) => {
     return next();
   }
 
+  const path = c.req.path;
+  if (path.includes("/subscription") || path.includes("/plans")) {
+    return next();
+  }
+
   const restaurant = c.get("restaurant") as { id?: string } | undefined;
   const organization = c.get("organization") as { id?: string } | undefined;
   if (!organization?.id) {

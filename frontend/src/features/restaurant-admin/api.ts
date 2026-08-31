@@ -1,6 +1,6 @@
 import { apiClient } from "@/lib/api/client";
 import type { DashboardDateQueryParams } from "@/lib/dashboard/date-filter";
-import type { AuditLog, BillRow, RestaurantAdminDashboard, RestaurantNotification, StaffMember, StaffRole, SubscriptionDetails, UserStatus } from "./types";
+import type { AuditLog, AvailablePlansResponse, BillRow, RestaurantAdminDashboard, RestaurantNotification, StaffMember, StaffRole, SubscriptionDetails, UserStatus } from "./types";
 
 type ApiList<T> = { data: T[]; meta?: { total?: number; page?: number; limit?: number; unread?: number } };
 type ApiOne<T> = { data: T };
@@ -53,6 +53,16 @@ export async function getRestaurantAdminBills(params: ListParams) {
 
 export async function getRestaurantAdminSubscription() {
   const response = await apiClient.get<ApiOne<SubscriptionDetails>>("/restaurant-admin/subscription");
+  return response.data;
+}
+
+export async function getRestaurantAdminAvailablePlans() {
+  const response = await apiClient.get<ApiOne<AvailablePlansResponse>>("/restaurant-admin/plans");
+  return response.data;
+}
+
+export async function renewRestaurantAdminSubscription(input: { planId: string; billingCycle: "MONTHLY" | "YEARLY" }) {
+  const response = await apiClient.post("/restaurant-admin/subscription/renew", input);
   return response.data;
 }
 

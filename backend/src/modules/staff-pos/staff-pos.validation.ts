@@ -44,9 +44,12 @@ export const createOrderSchema = z.object({
 });
 
 export const assignTableSchema = z.object({
+  tableIds: z.array(z.string().uuid()).min(1).optional(),
+  tableId: z.string().uuid().optional(),
   customerName: requiredNameSchema,
   customerPhone: indianPhoneSchema,
   customerEmail: optionalEmailSchema,
+  numberOfGuests: z.coerce.number().int().min(1).max(100).optional(),
 });
 
 export const tableStatusSchema = z.enum(["AVAILABLE", "OCCUPIED", "RESERVED", "CLEANING", "OUT_OF_SERVICE"]);

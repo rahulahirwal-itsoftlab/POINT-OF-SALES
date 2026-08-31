@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { listLicenses } from "../api/license-api";
+import { getLicenseDetail, listLicenses } from "../api/license-api";
 
 export function useLicenses(params: {
   page?: number;
@@ -11,5 +11,13 @@ export function useLicenses(params: {
   return useQuery({
     queryKey: ["super-admin-licenses", params],
     queryFn: () => listLicenses(params),
+  });
+}
+
+export function useLicenseDetail(id?: string) {
+  return useQuery({
+    queryKey: ["super-admin", "license-detail", id],
+    queryFn: () => getLicenseDetail(id!),
+    enabled: Boolean(id),
   });
 }

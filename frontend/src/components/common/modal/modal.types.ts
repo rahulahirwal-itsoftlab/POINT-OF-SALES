@@ -11,7 +11,7 @@ export type ModalVariant =
   | "permission"
   | "form";
 
-export type ModalSize = "sm" | "md" | "lg" | "xl" | "full";
+export type ModalSize = "sm" | "md" | "lg" | "xl" | "2xl" | "3xl" | "full";
 
 export type CommonModalProps = {
   isOpen: boolean;

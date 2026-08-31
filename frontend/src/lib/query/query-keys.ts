@@ -14,6 +14,7 @@ export const queryKeys = {
   restaurantAdminStaffDetail: (id: string) => ["restaurant-admin", "staff", "detail", id] as const,
   restaurantAdminBills: (params?: unknown) => ["restaurant-admin", "bills", params] as const,
   restaurantAdminSubscription: ["restaurant-admin", "subscription"] as const,
+  restaurantAdminAvailablePlans: ["restaurant-admin", "plans", "available"] as const,
   restaurantAdminAuditLogs: (params?: unknown) => ["restaurant-admin", "audit-logs", params] as const,
   restaurantAdminActivityLogs: (params?: unknown) => ["restaurant-admin", "activity-logs", params] as const,
   restaurantAdminNotifications: (params?: unknown) => ["restaurant-admin", "notifications", params] as const,

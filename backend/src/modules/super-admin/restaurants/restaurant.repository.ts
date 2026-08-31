@@ -461,48 +461,6 @@ export class RestaurantRepository {
         newValues: { ownerEmail: admin.email, ownerStatus: admin.status },
       });
 
-      await tx.insert(notifications).values({
-        scope: "SYSTEM",
-        organizationId: organization.id,
-        restaurantId: restaurant.id,
-        recipientAdminId: admin.id,
-        recipientRole: "RESTAURANT_ADMIN",
-        type: "RESTAURANT_CREATED",
-        title: "Restaurant created",
-        message: `${restaurant.name} was created with restaurant owner ${admin.email}.`,
-        entityType: "restaurant",
-        entityId: restaurant.id,
-        dedupeKey: `restaurant:${restaurant.id}:created`,
-      }).onConflictDoNothing();
-
-      await tx.insert(notifications).values({
-        scope: "SYSTEM",
-        organizationId: organization.id,
-        restaurantId: restaurant.id,
-        recipientAdminId: admin.id,
-        recipientRole: "RESTAURANT_ADMIN",
-        type: "SUBSCRIPTION_CREATED",
-        title: "Subscription created",
-        message: `${restaurant.name} subscription was created and is valid until ${endDate.toISOString()}.`,
-        entityType: "subscription",
-        entityId: subscription.id,
-        dedupeKey: `subscription:${subscription.id}:created`,
-      }).onConflictDoNothing();
-
-      await tx.insert(notifications).values({
-        scope: "SYSTEM",
-        organizationId: organization.id,
-        restaurantId: restaurant.id,
-        recipientAdminId: admin.id,
-        recipientRole: "RESTAURANT_ADMIN",
-        type: "LICENSE_CREATED",
-        title: "License created",
-        message: `${restaurant.name} license was created and is valid until ${endDate.toISOString()}.`,
-        entityType: "license",
-        entityId: license.id,
-        dedupeKey: `license:${license.id}:created`,
-      }).onConflictDoNothing();
-
       return {
         restaurant,
         organization,

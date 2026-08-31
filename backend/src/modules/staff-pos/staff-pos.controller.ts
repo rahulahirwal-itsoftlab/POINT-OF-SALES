@@ -61,7 +61,8 @@ export class StaffPosController {
 
   async assignTable(c: Context) {
     const input = await validateJson(c, assignTableSchema);
-    return c.json(successResponse(await this.repository.assignTable(this.tenant(c), this.id(c), input), "Table assigned"), 201);
+    const tableId = c.req.param("id") ?? null;
+    return c.json(successResponse(await this.repository.assignTable(this.tenant(c), tableId, input), "Table assigned"), 201);
   }
 
   async createMenuItem(c: Context) {

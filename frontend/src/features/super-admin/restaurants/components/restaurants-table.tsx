@@ -7,10 +7,13 @@ import toast from "react-hot-toast";
 import { useConfirmation } from "@/components/common/modal";
 import { FilterCard, FilterSelect } from "@/components/common/filters";
 
+import { RestaurantBranding } from "@/components/common/restaurant-branding";
+
 type Restaurant = {
   id: string;
   publicId: string;
   name: string;
+  logo?: string | null;
   email: string | null;
   phone: string | null;
   status: "ACTIVE" | "INACTIVE" | "SUSPENDED" | "BLOCKED" | "ARCHIVED";
@@ -129,8 +132,11 @@ export function RestaurantsTable() {
                 restaurants.map((restaurant) => (
                   <tr key={restaurant.id}>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="font-medium text-gray-900">{restaurant.name}</div>
-                      <div className="text-xs text-gray-500">{restaurant.publicId}</div>
+                      <RestaurantBranding
+                        restaurant={{ name: restaurant.name, logo: restaurant.logo }}
+                        size="sm"
+                      />
+                      <div className="mt-1 text-xs text-gray-500">{restaurant.publicId}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-gray-500">
                       <div>{restaurant.email || "No email"}</div>

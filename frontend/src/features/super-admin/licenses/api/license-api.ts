@@ -104,6 +104,11 @@ export async function getLicenseHistory(id: string): Promise<{ data: LicenseHist
   return response.data;
 }
 
+export async function getLicenseDetail(id: string): Promise<{ data: LicenseListItem }> {
+  const response = await apiClient.get(`/super-admin/licenses/${id}`);
+  return response.data;
+}
+
 export async function triggerLicenseExpiry() {
   const response = await apiClient.post("/super-admin/licenses/trigger-expiry");
   return response.data;

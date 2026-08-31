@@ -61,7 +61,16 @@ function invalidateOps(queryClient: ReturnType<typeof useQueryClient>) {
 export function useAssignTable() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ tableId, input }: { tableId: string; input: Parameters<typeof assignTable>[1] }) => assignTable(tableId, input),
+    mutationFn: (
+      payload:
+        | { tableId: string; input: { customerName: string; customerPhone: string; customerEmail?: string; numberOfGuests?: number } }
+        | { tableIds: string[]; customerName: string; customerPhone: string; customerEmail?: string; numberOfGuests?: number }
+    ) => {
+      if ("tableId" in payload && payload.input) {
+        return assignTable(payload.tableId, payload.input);
+      }
+      return assignTable(payload as { tableIds: string[]; customerName: string; customerPhone: string; customerEmail?: string; numberOfGuests?: number });
+    },
     onSuccess: () => invalidateOps(queryClient),
   });
 }
@@ -184,7 +193,7 @@ export function usePayBill() {
 }
 
 export function useCategories() {
-  return useQuery({ queryKey: ["staff-pos", "categories"], queryFn: getCategories });
+  return useQuery({ queryKey: ["staff-pos", "categories"], queryFn: getCategories, staleTime: 5 * 60 * 1000, gcTime: 15 * 60 * 1000 });
 }
 
 export function useCreateCategory() {
@@ -198,7 +207,7 @@ export function useCreateCategory() {
 }
 
 export function useMenu() {
-  return useQuery({ queryKey: ["staff-pos", "menu"], queryFn: getMenu });
+  return useQuery({ queryKey: ["staff-pos", "menu"], queryFn: getMenu, staleTime: 5 * 60 * 1000, gcTime: 15 * 60 * 1000 });
 }
 
 export function useCreateMenuItem() {

@@ -1,6 +1,7 @@
 import { AppError } from "../../../common/errors/app-error.js";
 import { hashPassword } from "../../../common/auth/password.js";
 import { createLicenseKey, createPublicId } from "../../../common/utils/id-generator.js";
+import { uploadImageFile } from "../../../common/uploads/upload.helper.js";
 import { RestaurantRepository } from "./restaurant.repository.js";
 import type { CreateRestaurantRequest, ListRestaurantQuery, UpdateRestaurantInput } from "./restaurant.types.js";
 
@@ -15,6 +16,14 @@ export class RestaurantService {
     const data = await this.repository.detail(id);
     if (!data) throw new AppError("Restaurant not found", 404, "RESTAURANT_NOT_FOUND");
     return data;
+  }
+
+  async uploadLogo(file: File, requestId?: string) {
+    return uploadImageFile({
+      file,
+      folder: "logos",
+      requestId,
+    });
   }
 
   async create(input: CreateRestaurantRequest, actorSuperAdminId?: string) {

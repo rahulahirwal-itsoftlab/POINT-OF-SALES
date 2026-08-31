@@ -20,6 +20,7 @@ staffPosRoutes.post("/tables", requireRole("RESTAURANT_ADMIN", "RECEPTION"), (c)
 staffPosRoutes.get("/tables/:id", requireRole("RESTAURANT_ADMIN", "RECEPTION", "WAITER", "KITCHEN"), (c) => controller.tableDetail(c));
 staffPosRoutes.patch("/tables/:id", requireRole("RESTAURANT_ADMIN", "RECEPTION"), (c) => controller.updateTable(c));
 staffPosRoutes.delete("/tables/:id", requireRole("RESTAURANT_ADMIN", "RECEPTION"), (c) => controller.deleteTable(c));
+staffPosRoutes.post("/tables/assign", requireRole("WAITER"), (c) => controller.assignTable(c));
 staffPosRoutes.post("/tables/:id/assign", requireRole("WAITER"), (c) => controller.assignTable(c));
 staffPosRoutes.get("/orders", requireRole("RESTAURANT_ADMIN", "RECEPTION", "WAITER", "KITCHEN"), (c) => controller.orders(c));
 staffPosRoutes.post("/orders", requireRole("RESTAURANT_ADMIN", "WAITER", "RECEPTION"), (c) => controller.createOrder(c));

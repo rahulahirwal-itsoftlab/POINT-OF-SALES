@@ -7,6 +7,7 @@ const controller = new RestaurantController();
 
 superAdminRestaurantRoutes.get("/", requirePermission("restaurant:read"), (c) => controller.list(c));
 superAdminRestaurantRoutes.post("/", requirePermission("restaurant:create"), (c) => controller.create(c));
+superAdminRestaurantRoutes.post("/upload-logo", requirePermission("restaurant:create"), (c) => controller.uploadLogo(c));
 superAdminRestaurantRoutes.get("/:id", requirePermission("restaurant:read"), (c) => controller.detail(c));
 superAdminRestaurantRoutes.patch("/:id", requirePermission("restaurant:update"), (c) => controller.update(c));
 superAdminRestaurantRoutes.delete("/:id", requirePermission("restaurant:delete"), (c) => controller.delete(c));

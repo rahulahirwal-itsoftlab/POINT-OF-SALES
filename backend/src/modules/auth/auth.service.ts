@@ -4,6 +4,9 @@ import { Errors } from "../../common/errors/error-codes.js";
 import { verifyPassword } from "../../common/auth/password.js";
 import { hashSessionToken } from "../../common/auth/session-token.js";
 import { tokenService } from "../../common/auth/token.service.js";
+import { db } from "../../db/index.js";
+import { restaurants } from "../../db/schema/index.js";
+import { eq } from "drizzle-orm";
 import { AuthRepository } from "./auth.repository.js";
 import type { AuthSubjectType, LoginInput, RequestMetadata } from "./auth.types.js";
 
@@ -412,6 +415,22 @@ export class AuthService {
     const restaurantIds = user.restaurantId ? [user.restaurantId] : [];
     const organizationIds = user.organizationId ? [user.organizationId] : [];
 
+    let restaurant: { id: string; name: string; logo: string | null } | null = null;
+    if (user.restaurantId) {
+      try {
+        const [r] = await db
+          .select({ id: restaurants.id, name: restaurants.name, logo: restaurants.logo })
+          .from(restaurants)
+          .where(eq(restaurants.id, user.restaurantId))
+          .limit(1);
+        if (r) {
+          restaurant = { id: r.id, name: r.name, logo: r.logo };
+        }
+      } catch {
+        // Ignore DB lookup error for fallback
+      }
+    }
+
     return {
       id: user.publicId,
       name: user.name,
@@ -426,6 +445,9 @@ export class AuthService {
       restaurantId: user.restaurantId ?? null,
       organizationIds,
       restaurantIds,
+      restaurant,
+      restaurantName: restaurant?.name ?? null,
+      restaurantLogo: restaurant?.logo ?? null,
       lastLoginAt: user.lastLoginAt,
     };
   }

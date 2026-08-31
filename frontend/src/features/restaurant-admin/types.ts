@@ -70,6 +70,9 @@ export type BillRow = {
 };
 
 export type SubscriptionDetails = {
+  id?: string;
+  planId?: string;
+  planNumber?: string;
   planName: string;
   planType: "PREDEFINED" | "CUSTOMIZED";
   billingCycle: string;
@@ -99,6 +102,31 @@ export type SubscriptionDetails = {
   remainingDays: number;
   licenseStatus: string;
   licenseKey: string;
+};
+
+export type AvailablePlan = {
+  id: string;
+  planNumber?: string;
+  code: string;
+  name: string;
+  description?: string | null;
+  planType: "PREDEFINED" | "CUSTOMIZED";
+  monthlyPrice: string;
+  yearlyPrice: string;
+  durationMonths?: number | null;
+  gstPercentage?: string | number | null;
+  features?: string[];
+  maxUsers?: number | null;
+  waiterLimit?: number | null;
+  kitchenLimit?: number | null;
+  receptionistLimit?: number | null;
+  isActive: boolean;
+  createdAt?: string;
+};
+
+export type AvailablePlansResponse = {
+  commonPlans: AvailablePlan[];
+  customPlan: AvailablePlan | null;
 };
 
 export type AuditLog = {

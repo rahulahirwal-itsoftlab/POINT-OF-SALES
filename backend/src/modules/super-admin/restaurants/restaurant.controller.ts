@@ -58,6 +58,14 @@ export class RestaurantController {
     return c.json(successResponse(data, "Restaurant status updated successfully"));
   }
 
+  async uploadLogo(c: Context) {
+    const form = await c.req.formData();
+    const file = form.get("file");
+    if (!(file instanceof File)) throw new AppError("Image file is required", 422, "IMAGE_FILE_REQUIRED");
+    const result = await this.service.uploadLogo(file, c.get("requestId") as string | undefined);
+    return c.json(successResponse(result, "Logo uploaded successfully"));
+  }
+
   async delete(c: Context) {
     const id = c.req.param("id");
     if (!id) throw new AppError("Restaurant id is required", 400, "RESTAURANT_ID_REQUIRED");

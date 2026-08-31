@@ -18,7 +18,9 @@ import { useRestaurants } from "../hooks/use-restaurants";
 import { activateRestaurant, blockRestaurant, deactivateRestaurant, unblockRestaurant, getRestaurant } from "../api/restaurant-api";
 import { extractApiError } from "@/lib/api/client";
 import type { RestaurantSummary } from "../types/restaurant.types";
+import { RestaurantBranding } from "@/components/common/restaurant-branding";
 import { SubscriptionManageModal } from "./subscription-manage-modal";
+import { RestaurantDetailsModal } from "./restaurant-details-modal";
 
 export function RestaurantTable() {
   const router = useRouter();
@@ -28,6 +30,7 @@ export function RestaurantTable() {
   const [status, setStatus] = useState("");
   const [subscriptionStatus, setSubscriptionStatus] = useState("");
   const [licenseStatus, setLicenseStatus] = useState("");
+  const [selectedDetailRestaurantId, setSelectedDetailRestaurantId] = useState<string | null>(null);
 
   // Action states
   const [statusDialog, setStatusDialog] = useState<{
@@ -141,12 +144,8 @@ export function RestaurantTable() {
                   <th className="px-4 py-3">Owner/Admin</th>
                   <th className="px-4 py-3">Email</th>
                   <th className="px-4 py-3">Phone</th>
-                  <th className="px-4 py-3">Organization ID</th>
+                  <th className="px-4 py-3">Location</th>
                   <th className="px-4 py-3">Status</th>
-                  <th className="px-4 py-3">Subscription</th>
-                  <th className="px-4 py-3">License</th>
-                  <th className="px-4 py-3">Expiry</th>
-                  <th className="px-4 py-3">Created</th>
                   <th className="px-4 py-3 text-right">Actions</th>
                 </tr>
               </thead>
@@ -154,9 +153,9 @@ export function RestaurantTable() {
                 {rows.map((restaurant: RestaurantSummary) => {
                   const menuItems: ActionMenuItem[] = [
                     {
-                      label: "View Restaurant",
+                      label: "View Details",
                       icon: <Eye className="h-4 w-4" />,
-                      onClick: () => router.push(`/super-admin/restaurants/${restaurant.id}`),
+                      onClick: () => setSelectedDetailRestaurantId(restaurant.id),
                     },
                     {
                       label: "Edit Restaurant",
@@ -201,36 +200,31 @@ export function RestaurantTable() {
                   ];
 
                   return (
-                    <tr key={restaurant.id}>
+                    <tr key={restaurant.id} className="hover:bg-slate-50/50">
                       <td className="px-4 py-3">
-                        <Link href={`/super-admin/restaurants/${restaurant.id}`} className="font-medium text-slate-950 hover:underline">
-                          {restaurant.name}
-                        </Link>
-                        <div className="text-xs text-slate-500">{restaurant.publicId}</div>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedDetailRestaurantId(restaurant.id)}
+                          className="flex items-center gap-2 text-left hover:opacity-80 transition"
+                        >
+                          <RestaurantBranding
+                            restaurant={{ name: restaurant.name, logo: restaurant.logo }}
+                            size="sm"
+                          />
+                        </button>
                       </td>
                       <td className="px-4 py-3">
-                        <div className="font-medium text-slate-900">{restaurant.ownerName ?? "-"}</div>
+                        <div className="font-semibold text-slate-900">{restaurant.ownerName ?? "-"}</div>
                         <div className="text-xs text-slate-500">{restaurant.ownerPhone ?? "-"}</div>
                       </td>
                       <td className="px-4 py-3 text-slate-600">{restaurant.ownerEmail ?? restaurant.email ?? "-"}</td>
                       <td className="px-4 py-3 text-slate-600">{restaurant.phone ?? "-"}</td>
-                      <td className="px-4 py-3 font-mono text-xs text-slate-500">{restaurant.organizationId ?? "-"}</td>
+                      <td className="px-4 py-3 text-slate-600 font-medium text-xs">
+                        {[restaurant.city, restaurant.state].filter(Boolean).join(", ") || "-"}
+                      </td>
                       <td className="px-4 py-3">
                         <StatusBadge status={restaurant.status} />
                       </td>
-                      <td className="px-4 py-3">
-                        {restaurant.subscriptionStatus ? <StatusBadge status={restaurant.subscriptionStatus} /> : "-"}
-                        {restaurant.subscriptionBillingCycle ? <div className="mt-1 text-xs text-slate-500">{restaurant.subscriptionBillingCycle}</div> : null}
-                      </td>
-                      <td className="px-4 py-3">
-                        {restaurant.licenseStatus ? <StatusBadge status={restaurant.licenseStatus} /> : "-"}
-                        {restaurant.licenseKey ? <div className="mt-1 font-mono text-[10px] text-slate-500">{restaurant.licenseKey}</div> : null}
-                      </td>
-                      <td className="px-4 py-3">
-                        <div>{restaurant.licenseExpiry ? format(new Date(restaurant.licenseExpiry), "MMM d, yyyy") : "-"}</div>
-                        {restaurant.subscriptionExpiry ? <div className="text-xs text-slate-500">Sub {format(new Date(restaurant.subscriptionExpiry), "MMM d, yyyy")}</div> : null}
-                      </td>
-                      <td className="px-4 py-3">{format(new Date(restaurant.createdAt), "MMM d, yyyy")}</td>
                       <td className="px-4 py-3 text-right">
                         <ActionDropdown items={menuItems} />
                       </td>
@@ -290,6 +284,13 @@ export function RestaurantTable() {
         currentStartDate={subModal.startDate}
         currentEndDate={subModal.endDate}
         currentStatus={subModal.status}
+      />
+
+      {/* Restaurant Full Overview Details Modal */}
+      <RestaurantDetailsModal
+        restaurantId={selectedDetailRestaurantId}
+        isOpen={Boolean(selectedDetailRestaurantId)}
+        onClose={() => setSelectedDetailRestaurantId(null)}
       />
     </div>
   );

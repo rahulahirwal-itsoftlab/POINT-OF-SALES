@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { cn } from "@/lib/utils/cn";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useDashboardDateFilter } from "@/hooks/use-dashboard-date-filter";
-import { Edit3, Eye, IndianRupee, Loader2, Plus, ShieldCheck, UserCircle, Users } from "lucide-react";
+import { Check, Clock, Edit3, Eye, Loader2, Plus, Sparkles, UserCircle } from "lucide-react";
 import toast from "react-hot-toast";
 import { ActionDropdown } from "@/components/common/action-dropdown";
 import { DashboardDateFilter } from "@/components/dashboard/dashboard-date-filter";
@@ -31,6 +31,7 @@ import {
   useReadAllRestaurantAdminNotifications,
   useReadRestaurantAdminNotification,
   useRestaurantAdminAuditLogs,
+  useRestaurantAdminAvailablePlans,
   useRestaurantAdminBills,
   useRestaurantAdminDashboard,
   useRestaurantAdminNotifications,
@@ -40,7 +41,7 @@ import {
   useUpdateRestaurantAdminStaff,
   useUpdateRestaurantAdminStaffStatus,
 } from "./hooks";
-import type { StaffMember, StaffRole } from "./types";
+import type { AvailablePlan, StaffMember, StaffRole } from "./types";
 
 const roleLabels: Record<string, string> = {
   RECEPTION: "Receptionist",
@@ -58,18 +59,6 @@ function date(value?: string | null) {
 
 function time(value?: string | null) {
   return value ? new Intl.DateTimeFormat("en-IN", { hour: "2-digit", minute: "2-digit" }).format(new Date(value)) : "-";
-}
-
-function StatCard({ label, value, icon }: { label: string; value: string | number; icon: React.ReactNode }) {
-  return (
-    <div className="rounded-lg border bg-white p-4 shadow-sm">
-      <div className="flex items-center justify-between text-slate-500">
-        <p className="text-sm font-medium">{label}</p>
-        {icon}
-      </div>
-      <p className="mt-2 text-2xl font-semibold text-slate-950">{value}</p>
-    </div>
-  );
 }
 
 export function RestaurantAdminDashboardPage() {
@@ -569,44 +558,333 @@ export function RestaurantAdminBillsPage() {
 
 export function RestaurantAdminSubscriptionPage() {
   const { data, isLoading, isError, refetch } = useRestaurantAdminSubscription();
-  if (isLoading) return <LoadingSkeleton />;
-  if (isError || !data?.data) return <ErrorState message="Unable to load subscription." onRetry={() => refetch()} />;
+  const { data: plansData, isLoading: isLoadingPlans } = useRestaurantAdminAvailablePlans();
+
+  const [viewingPlanDetails, setViewingPlanDetails] = useState<AvailablePlan | null>(null);
+
+  if (isLoading || isLoadingPlans) return <LoadingSkeleton />;
+  if (isError || !data?.data) return <ErrorState message="Unable to load subscription details." onRetry={() => refetch()} />;
+
   const sub = data.data;
+  const commonPlans = plansData?.data?.commonPlans ?? [];
+  const customPlan = plansData?.data?.customPlan ?? null;
+
   const roleUsage = [
-    { label: "Waiter", value: sub.roleUsage?.waiters ?? { used: 0, limit: sub.waiterLimit, remaining: sub.waiterLimit } },
-    { label: "Kitchen", value: sub.roleUsage?.kitchen ?? { used: 0, limit: sub.kitchenLimit, remaining: sub.kitchenLimit } },
-    { label: "Receptionist", value: sub.roleUsage?.receptionists ?? { used: 0, limit: sub.receptionistLimit, remaining: sub.receptionistLimit } },
+    { label: "Waiters", value: sub.roleUsage?.waiters ?? { used: 0, limit: sub.waiterLimit, remaining: sub.waiterLimit } },
+    { label: "Kitchen Staff", value: sub.roleUsage?.kitchen ?? { used: 0, limit: sub.kitchenLimit, remaining: sub.kitchenLimit } },
+    { label: "Receptionists", value: sub.roleUsage?.receptionists ?? { used: 0, limit: sub.receptionistLimit, remaining: sub.receptionistLimit } },
   ];
+
+  const modalBase = viewingPlanDetails ? Number(viewingPlanDetails.monthlyPrice) : 0;
+  const modalYearlyBase = viewingPlanDetails ? Number(viewingPlanDetails.yearlyPrice) : 0;
+  const modalGstPct = viewingPlanDetails ? Number(viewingPlanDetails.gstPercentage ?? 18) : 18;
+  const modalGstAmount = (modalBase * modalGstPct) / 100;
+  const modalFinalAmount = modalBase + modalGstAmount;
+
   return (
-    <div className="space-y-6">
-      <PageHeader title="Subscription Management" description="View-only subscription and license status." />
-      <div className="grid gap-4 md:grid-cols-3">
-        <StatCard label="Current Plan" value={sub.planName} icon={<ShieldCheck className="h-4 w-4" />} />
-        <StatCard label="Final Price" value={currency(sub.finalPrice, sub.currency)} icon={<IndianRupee className="h-4 w-4" />} />
-        <StatCard label="Staff Usage" value={`${sub.usedStaff} / ${sub.staffLimit ?? "Unlimited"}`} icon={<Users className="h-4 w-4" />} />
-      </div>
-      <div className="rounded-lg border bg-white p-5 shadow-sm">
-        <div className="mb-5 grid gap-3 md:grid-cols-3">
-          {roleUsage.map(({ label, value }) => (
-            <div key={label} className="rounded-lg border border-amber-200 bg-[#fffaf0] p-4">
-              <div className="text-xs font-semibold uppercase text-slate-500">{label}</div>
-              <div className="mt-2 text-xl font-bold text-slate-950">{value.used} / {value.limit ?? "Unlimited"}</div>
-              <div className="mt-1 text-xs text-slate-500">Remaining: {value.remaining ?? "Unlimited"}</div>
+    <div className="space-y-8">
+      <PageHeader
+        title="Subscription Management"
+        description="View your active subscription details, staff capacity limits, and available common or custom subscription plans."
+      />
+
+      {/* SECTION 1: MY ACTIVE SUBSCRIPTION */}
+      <section className="rounded-xl border bg-white p-6 shadow-sm space-y-6">
+        <div className="flex flex-wrap items-center justify-between gap-4 border-b pb-4">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-500">MY ACTIVE SUBSCRIPTION</span>
+              <span className={cn("px-2 py-0.5 rounded-full text-[11px] font-extrabold uppercase border", sub.planType === "CUSTOMIZED" ? "bg-purple-50 text-purple-700 border-purple-200" : "bg-blue-50 text-blue-700 border-blue-200")}>
+                {sub.planType === "CUSTOMIZED" ? "CUSTOM PLAN" : "COMMON PLAN"}
+              </span>
             </div>
-          ))}
+            <h2 className="mt-1 text-2xl font-extrabold text-slate-950 flex items-center gap-3">
+              {sub.planName}
+              {sub.planNumber ? <span className="text-xs font-mono font-medium text-slate-500">({sub.planNumber})</span> : null}
+            </h2>
+          </div>
+          <div className="flex items-center gap-3">
+            <StatusBadge status={sub.status} />
+            <div className="rounded-lg bg-amber-50 border border-amber-200 px-3 py-1.5 text-xs font-semibold text-amber-900 flex items-center gap-1.5">
+              <Clock className="h-3.5 w-3.5" />
+              <span>{sub.remainingDays} Days Remaining</span>
+            </div>
+          </div>
         </div>
-        <div className="mb-5 grid gap-3 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm md:grid-cols-3">
-          <div><div className="text-xs font-semibold uppercase text-slate-500">Base Price</div><div className="mt-1 font-bold text-slate-950">{currency(sub.basePrice, sub.currency)}</div></div>
-          <div><div className="text-xs font-semibold uppercase text-slate-500">GST ({sub.gstPercentage}%)</div><div className="mt-1 font-bold text-slate-950">{currency(sub.gstAmount, sub.currency)}</div></div>
-          <div><div className="text-xs font-semibold uppercase text-slate-500">Final Paid Amount</div><div className="mt-1 font-bold text-slate-950">{currency(sub.finalPrice, sub.currency)}</div></div>
+
+        {/* Staff Capacity & Limits */}
+        <div>
+          <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3">Staff Capacity & Limits</h3>
+          <div className="grid gap-4 md:grid-cols-3">
+            {roleUsage.map(({ label, value }) => {
+              const isAtLimit = value.limit !== null && value.used >= value.limit;
+              return (
+                <div key={label} className={cn("rounded-lg border p-4 transition-all", isAtLimit ? "border-red-200 bg-red-50/50" : "border-slate-200 bg-slate-50/50")}>
+                  <div className="text-xs font-semibold text-slate-500 uppercase">{label}</div>
+                  <div className="mt-2 text-2xl font-black text-slate-950">
+                    {value.used} <span className="text-sm font-normal text-slate-500">/ {value.limit ?? "Unlimited"}</span>
+                  </div>
+                  <div className="mt-1.5 flex items-center justify-between text-xs">
+                    <span className="text-slate-500">Remaining Slots:</span>
+                    <span className={cn("font-bold", isAtLimit ? "text-red-600" : "text-emerald-600")}>
+                      {value.remaining ?? "Unlimited"}
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
-        <dl className="grid gap-4 md:grid-cols-2">
-          {Object.entries({ "Plan Type": sub.planType, "Billing Cycle": sub.billingCycle, "Staff Limit": sub.staffLimit ?? "Unlimited", "Used Staff": sub.usedStaff, "Remaining Staff": sub.remainingStaff ?? "Unlimited", "Remaining Days": sub.remainingDays, "Standard Price": currency(sub.standardPrice, sub.currency), "Custom Price": sub.customPrice ? currency(sub.customPrice, sub.currency) : "-", Status: sub.status, "Payment Status": sub.paymentStatus, "Start Date": date(sub.startDate), "End Date": date(sub.endDate), "License Status": sub.licenseStatus, "License Key": sub.licenseKey }).map(([label, value]) => (
-            <div key={label}><dt className="text-xs font-semibold uppercase text-slate-500">{label}</dt><dd className="mt-1 text-sm text-slate-900">{value}</dd></div>
-          ))}
-        </dl>
-      </div>
+
+        {/* Price Breakdown & Timeline */}
+        <div className="grid gap-6 md:grid-cols-2">
+          <div className="rounded-lg border border-slate-200 bg-slate-50/40 p-4 space-y-3">
+            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500">Price & Tax Breakdown</h4>
+            <div className="space-y-2 text-sm">
+              <div className="flex justify-between text-slate-600">
+                <span>Base Amount</span>
+                <span className="font-semibold text-slate-900">{currency(sub.basePrice, sub.currency)}</span>
+              </div>
+              <div className="flex justify-between text-slate-600">
+                <span>GST ({sub.gstPercentage}%)</span>
+                <span className="font-semibold text-slate-900">{currency(sub.gstAmount, sub.currency)}</span>
+              </div>
+              <div className="flex justify-between border-t pt-2 text-base font-bold text-slate-950">
+                <span>Final Paid Amount</span>
+                <span className="text-emerald-700">{currency(sub.finalPrice, sub.currency)}</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-lg border border-slate-200 bg-slate-50/40 p-4 space-y-3">
+            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500">Subscription Timeline</h4>
+            <div className="grid grid-cols-2 gap-3 text-sm">
+              <div>
+                <span className="text-xs text-slate-500">Billing Cycle:</span>
+                <p className="font-semibold text-slate-900">{sub.billingCycle}</p>
+              </div>
+              <div>
+                <span className="text-xs text-slate-500">Duration:</span>
+                <p className="font-semibold text-slate-900">{sub.durationMonths ?? 1} Month(s)</p>
+              </div>
+              <div>
+                <span className="text-xs text-slate-500">Start Date:</span>
+                <p className="font-semibold text-slate-900">{date(sub.startDate)}</p>
+              </div>
+              <div>
+                <span className="text-xs text-slate-500">Expiry Date:</span>
+                <p className="font-semibold text-slate-900">{date(sub.endDate)}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* MY CUSTOM PLAN SECTION */}
+      {customPlan ? (
+        <section className="space-y-4">
+          <div className="flex items-center gap-2">
+            <Sparkles className="h-5 w-5 text-purple-600" />
+            <h2 className="text-xl font-extrabold text-slate-950">MY CUSTOM SUBSCRIPTION PLAN</h2>
+          </div>
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            <PlanCard
+              plan={customPlan}
+              isCurrent={sub.planId === customPlan.id}
+              onViewDetails={(plan) => setViewingPlanDetails(plan)}
+              isCustom
+            />
+          </div>
+        </section>
+      ) : null}
+
+      {/* SECTION 2: AVAILABLE COMMON PLANS */}
+      <section className="space-y-4">
+        <div>
+          <h2 className="text-xl font-extrabold text-slate-950">AVAILABLE SUBSCRIPTION PLANS</h2>
+          <p className="text-sm text-slate-500">View information on all active common subscription plans available across the system.</p>
+        </div>
+
+        {!commonPlans.length ? (
+          <EmptyState title="No subscription plans are currently available." description="Contact Super Admin to publish subscription plans." />
+        ) : (
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {commonPlans.map((plan) => (
+              <PlanCard
+                key={plan.id}
+                plan={plan}
+                isCurrent={sub.planId === plan.id}
+                onViewDetails={(selected) => setViewingPlanDetails(selected)}
+              />
+            ))}
+          </div>
+        )}
+      </section>
+
+      {/* SECTION 3: SUBSCRIPTION PLAN DETAILS MODAL (VIEW DETAILS ONLY) */}
+      <CommonModal
+        isOpen={Boolean(viewingPlanDetails)}
+        onClose={() => setViewingPlanDetails(null)}
+        title={`Subscription Plan Details: ${viewingPlanDetails?.name}`}
+        description="Comprehensive specifications, pricing breakdown, and role limits for this plan."
+        showFooter={false}
+      >
+        {viewingPlanDetails ? (
+          <div className="space-y-5">
+            <div className="flex items-center justify-between border-b pb-3">
+              <div>
+                <span className="text-xs font-mono font-bold text-slate-500 uppercase">{viewingPlanDetails.planNumber ?? viewingPlanDetails.code}</span>
+                <h3 className="text-xl font-extrabold text-slate-950">{viewingPlanDetails.name}</h3>
+              </div>
+              <span className={cn("px-2.5 py-1 rounded-full text-xs font-extrabold uppercase border", viewingPlanDetails.planType === "CUSTOMIZED" ? "bg-purple-50 text-purple-700 border-purple-200" : "bg-blue-50 text-blue-700 border-blue-200")}>
+                {viewingPlanDetails.planType === "CUSTOMIZED" ? "CUSTOM PLAN" : "COMMON PLAN"}
+              </span>
+            </div>
+
+            {viewingPlanDetails.description ? (
+              <p className="text-xs text-slate-600 bg-slate-50 p-3 rounded-lg border">{viewingPlanDetails.description}</p>
+            ) : null}
+
+            <div className="rounded-lg border border-emerald-200 bg-emerald-50/40 p-4 space-y-2 text-sm">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">Pricing Breakdown</h4>
+              <div className="flex justify-between text-slate-600">
+                <span>Monthly Base Price</span>
+                <span className="font-semibold text-slate-900">{currency(modalBase)}</span>
+              </div>
+              <div className="flex justify-between text-slate-600">
+                <span>Yearly Base Price</span>
+                <span className="font-semibold text-slate-900">{currency(modalYearlyBase)}</span>
+              </div>
+              <div className="flex justify-between text-slate-600">
+                <span>GST ({modalGstPct}%)</span>
+                <span className="font-semibold text-slate-900">{currency(modalGstAmount)}</span>
+              </div>
+              <div className="flex justify-between border-t border-emerald-200 pt-2 text-base font-black text-slate-950">
+                <span>Final Monthly Price</span>
+                <span className="text-emerald-700">{currency(modalFinalAmount)}</span>
+              </div>
+            </div>
+
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">Allowed Staff Capacity</h4>
+              <div className="grid grid-cols-3 gap-2 text-center text-xs font-bold text-slate-800">
+                <div className="rounded bg-white p-2.5 border">
+                  <div className="text-[10px] text-slate-500 uppercase font-semibold">Waiters</div>
+                  <div className="text-base text-slate-950 mt-1">{viewingPlanDetails.waiterLimit ?? "Unlimited"}</div>
+                </div>
+                <div className="rounded bg-white p-2.5 border">
+                  <div className="text-[10px] text-slate-500 uppercase font-semibold">Kitchen Staff</div>
+                  <div className="text-base text-slate-950 mt-1">{viewingPlanDetails.kitchenLimit ?? "Unlimited"}</div>
+                </div>
+                <div className="rounded bg-white p-2.5 border">
+                  <div className="text-[10px] text-slate-500 uppercase font-semibold">Receptionists</div>
+                  <div className="text-base text-slate-950 mt-1">{viewingPlanDetails.receptionistLimit ?? "Unlimited"}</div>
+                </div>
+              </div>
+            </div>
+
+            {(viewingPlanDetails.features ?? []).length > 0 ? (
+              <div>
+                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">Included Features</h4>
+                <div className="flex flex-wrap gap-1.5">
+                  {(viewingPlanDetails.features ?? []).map((f) => (
+                    <span key={f} className="rounded-md bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700 border">
+                      ✓ {f}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+
+            <div className="flex justify-end pt-3 border-t">
+              <button
+                type="button"
+                onClick={() => setViewingPlanDetails(null)}
+                className="rounded-lg bg-slate-950 px-6 py-2 text-sm font-bold text-white hover:bg-slate-800 transition-all shadow-sm"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        ) : null}
+      </CommonModal>
     </div>
+  );
+}
+
+function PlanCard({
+  plan,
+  isCurrent,
+  onViewDetails,
+  isCustom = false,
+}: {
+  plan: AvailablePlan;
+  isCurrent: boolean;
+  onViewDetails: (plan: AvailablePlan) => void;
+  isCustom?: boolean;
+}) {
+  const basePrice = Number(plan.monthlyPrice);
+  const gstPct = Number(plan.gstPercentage ?? 18);
+  const gstAmt = (basePrice * gstPct) / 100;
+  const finalPrice = basePrice + gstAmt;
+
+  return (
+    <article className={cn(
+      "rounded-xl border bg-white p-6 shadow-xs flex flex-col justify-between transition-all relative overflow-hidden",
+      isCurrent ? "border-emerald-500 ring-2 ring-emerald-500/20" : isCustom ? "border-purple-300 bg-purple-50/20" : "border-slate-200 hover:border-slate-300"
+    )}>
+      {isCurrent ? (
+        <div className="absolute top-0 right-0 bg-emerald-600 text-white text-[10px] font-black uppercase tracking-wider px-3 py-1 rounded-bl-lg">
+          ACTIVE PLAN
+        </div>
+      ) : null}
+
+      <div>
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-mono font-semibold uppercase text-slate-500">{plan.planNumber ?? plan.code}</span>
+          {isCustom ? (
+            <span className="bg-purple-100 text-purple-800 text-[10px] font-extrabold uppercase px-2 py-0.5 rounded">CUSTOM</span>
+          ) : null}
+        </div>
+        <h3 className="mt-1 text-xl font-extrabold text-slate-950">{plan.name}</h3>
+        {plan.description ? <p className="mt-1 text-xs text-slate-500 leading-relaxed line-clamp-2">{plan.description}</p> : null}
+
+        <div className="mt-4 border-y py-3 my-4">
+          <div className="flex items-baseline gap-1">
+            <span className="text-3xl font-black text-slate-950">{currency(finalPrice)}</span>
+            <span className="text-xs font-medium text-slate-500">/ Month</span>
+          </div>
+          <div className="mt-1 text-[11px] text-slate-500">
+            Base: {currency(basePrice)} + GST ({gstPct}%): {currency(gstAmt)}
+          </div>
+        </div>
+
+        <div className="space-y-2 text-xs font-semibold text-slate-700">
+          <div className="flex items-center gap-2">
+            <Check className="h-4 w-4 text-emerald-600 shrink-0" />
+            <span>{plan.waiterLimit ?? "-"} Waiters Allowed</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Check className="h-4 w-4 text-emerald-600 shrink-0" />
+            <span>{plan.kitchenLimit ?? "-"} Kitchen Staff Allowed</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Check className="h-4 w-4 text-emerald-600 shrink-0" />
+            <span>{plan.receptionistLimit ?? "-"} Receptionists Allowed</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-6 pt-4 border-t">
+        <button
+          type="button"
+          onClick={() => onViewDetails(plan)}
+          className="w-full rounded-lg py-2.5 px-4 text-xs font-bold transition-all text-center bg-slate-950 text-white hover:bg-slate-800 shadow-sm"
+        >
+          View Details
+        </button>
+      </div>
+    </article>
   );
 }
 

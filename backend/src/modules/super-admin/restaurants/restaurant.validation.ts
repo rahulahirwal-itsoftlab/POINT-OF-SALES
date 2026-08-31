@@ -33,7 +33,7 @@ const flatCreateRestaurantSchema = z.object({
   cuisineType: z.string().max(80).optional(),
   timezone: z.string().min(3).max(64),
   currency: z.string().min(3).max(8),
-  logo: z.string().url().optional(),
+  logo: z.string().optional(),
   website: z.string().url().optional(),
   status: z.enum(["ACTIVE", "INACTIVE", "SUSPENDED", "BLOCKED"]).optional(),
   adminName: requiredNameSchema,
@@ -81,7 +81,7 @@ const restaurantPayloadSchema = z.object({
     cuisineType: z.string().max(80).optional(),
     timezone: z.string().min(3).max(64),
     currency: z.string().min(3).max(8),
-    logo: z.string().url().optional(),
+    logo: z.string().optional(),
     website: z.string().url().optional(),
     status: z.enum(["ACTIVE", "INACTIVE", "SUSPENDED", "BLOCKED"]).optional(),
   }).superRefine((input, context) => {

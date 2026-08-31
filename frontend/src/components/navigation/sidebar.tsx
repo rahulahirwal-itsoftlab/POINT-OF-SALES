@@ -19,6 +19,8 @@ import {
 import { navigationSections } from "@/config/navigation";
 import { cn } from "@/lib/utils/cn";
 
+import { RestaurantBranding } from "@/components/common/restaurant-branding";
+
 const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   Dashboard: LayoutDashboard,
   Restaurants: Store,
@@ -54,21 +56,32 @@ export function Sidebar({ role, isOpen = false, onClose }: { role?: string; isOp
     }))
     .filter((section) => section.items.length > 0);
 
+  const isSuperAdmin = role === "SUPER_ADMIN";
+
   const content = (
     <div className="flex h-full flex-col">
       <div className="border-b px-5 py-5" style={{ borderColor: "var(--border-soft)" }}>
         <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-xl heritage-button-primary">
-              <Gauge className="h-5 w-5" />
+          {isSuperAdmin ? (
+            <div className="flex items-center gap-3">
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl heritage-button-primary">
+                <Gauge className="h-5 w-5" />
+              </div>
+              <div>
+                <div className="heritage-heading text-xl font-bold leading-none">Royal POS</div>
+                <div className="mt-1 text-[11px] font-bold uppercase tracking-[0.18em]" style={{ color: "var(--muted)" }}>
+                  {roleLabels[role ?? ""] ?? "Restaurant"}
+                </div>
+              </div>
             </div>
-            <div>
-              <div className="heritage-heading text-xl font-bold leading-none">Royal POS</div>
+          ) : (
+            <div className="min-w-0 flex-1">
+              <RestaurantBranding size="lg" />
               <div className="mt-1 text-[11px] font-bold uppercase tracking-[0.18em]" style={{ color: "var(--muted)" }}>
                 {roleLabels[role ?? ""] ?? "Restaurant"}
               </div>
             </div>
-          </div>
+          )}
           {onClose ? (
             <button type="button" onClick={onClose} className="rounded-lg p-2 lg:hidden" aria-label="Close navigation">
               <X className="h-4 w-4" />

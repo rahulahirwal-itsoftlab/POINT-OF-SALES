@@ -300,6 +300,29 @@ export const customers = pgTable("customers", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+export const customerTableAssignments = pgTable(
+  "customer_table_assignments",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    organizationId: uuid("organization_id").notNull().references(() => organizations.id),
+    restaurantId: uuid("restaurant_id").notNull().references(() => restaurants.id),
+    customerId: uuid("customer_id").notNull().references(() => customers.id),
+    tableId: uuid("table_id").notNull().references(() => restaurantTables.id),
+    orderId: uuid("order_id").references(() => orders.id),
+    status: varchar("status", { length: 24 }).notNull().default("ACTIVE"),
+    assignedAt: timestamp("assigned_at", { withTimezone: true }).notNull().defaultNow(),
+    releasedAt: timestamp("released_at", { withTimezone: true }),
+  },
+  (table) => ({
+    organizationIdx: index("customer_table_assignments_organization_idx").on(table.organizationId),
+    restaurantIdx: index("customer_table_assignments_restaurant_idx").on(table.restaurantId),
+    customerIdx: index("customer_table_assignments_customer_idx").on(table.customerId),
+    tableIdx: index("customer_table_assignments_table_idx").on(table.tableId),
+    orderIdx: index("customer_table_assignments_order_idx").on(table.orderId),
+    statusIdx: index("customer_table_assignments_status_idx").on(table.status),
+  }),
+);
+
 export const orders = pgTable(
   "orders",
   {

@@ -6,7 +6,7 @@ import { buildDashboardDateRange, serializeDashboardDateRange, type DashboardDat
 import { createPublicId } from "../../common/utils/id-generator.js";
 import { deleteImageFromCloudinary, uploadImageToCloudinary } from "../../config/cloudinary.js";
 import { db } from "../../config/database.js";
-import { auditLogs, bills, customers, employees, menuCategories, menuItems, notifications, orderItems, orders, payments, restaurants, restaurantTables } from "../../db/schema/index.js";
+import { auditLogs, bills, customers, customerTableAssignments, employees, menuCategories, menuItems, notifications, orderItems, orders, payments, restaurants, restaurantTables } from "../../db/schema/index.js";
 import type { z } from "zod";
 import type { addOrderItemsSchema, assignTableSchema, createCategorySchema, createMenuItemSchema, createOrderSchema, createTableSchema, listOrdersSchema, orderStatusSchema, paymentSchema, updateMenuItemSchema, updateTableSchema } from "./staff-pos.validation.js";
 
@@ -110,7 +110,7 @@ export class StaffPosRepository {
   }
 
   async tables(tenant: Tenant) {
-    return db
+    const tableRows = await db
       .select({
         id: restaurantTables.id,
         tableNumber: restaurantTables.tableNumber,
@@ -124,6 +124,7 @@ export class StaffPosRepository {
         activeOrderTotal: orders.grandTotal,
         activeBillNumber: bills.billNumber,
         activePaymentStatus: bills.paymentStatus,
+        customerId: customers.id,
         customerName: customers.name,
         customerPhone: customers.phone,
       })
@@ -133,6 +134,69 @@ export class StaffPosRepository {
       .leftJoin(customers, eq(orders.customerId, customers.id))
       .where(and(eq(restaurantTables.organizationId, tenant.organizationId), eq(restaurantTables.restaurantId, tenant.restaurantId)))
       .orderBy(restaurantTables.tableNumber);
+
+    const activeAssignments = await db
+      .select({
+        tableId: customerTableAssignments.tableId,
+        customerId: customerTableAssignments.customerId,
+        orderId: customerTableAssignments.orderId,
+        assignedTableNumber: restaurantTables.tableNumber,
+        customerName: customers.name,
+        customerPhone: customers.phone,
+        orderIdRef: orders.id,
+        orderNumber: orders.orderNumber,
+        orderStatus: orders.status,
+        orderGrandTotal: orders.grandTotal,
+        billNumber: bills.billNumber,
+        paymentStatus: bills.paymentStatus,
+      })
+      .from(customerTableAssignments)
+      .innerJoin(restaurantTables, eq(customerTableAssignments.tableId, restaurantTables.id))
+      .innerJoin(customers, eq(customerTableAssignments.customerId, customers.id))
+      .leftJoin(orders, eq(customerTableAssignments.orderId, orders.id))
+      .leftJoin(bills, eq(bills.orderId, orders.id))
+      .where(and(
+        eq(customerTableAssignments.organizationId, tenant.organizationId),
+        eq(customerTableAssignments.restaurantId, tenant.restaurantId),
+        eq(customerTableAssignments.status, "ACTIVE")
+      ));
+
+    const customerGroupTablesMap = new Map<string, string[]>();
+    for (const a of activeAssignments) {
+      const key = a.orderId ?? a.customerId;
+      if (!customerGroupTablesMap.has(key)) {
+        customerGroupTablesMap.set(key, []);
+      }
+      customerGroupTablesMap.get(key)!.push(a.assignedTableNumber);
+    }
+
+    const tableAssignmentMap = new Map<string, typeof activeAssignments[0]>();
+    for (const a of activeAssignments) {
+      tableAssignmentMap.set(a.tableId, a);
+    }
+
+    return tableRows.map((t) => {
+      const assignment = tableAssignmentMap.get(t.id);
+      const activeCustId = t.customerId ?? assignment?.customerId;
+      const activeOrdId = t.activeOrderId ?? assignment?.orderId;
+      const groupKey = activeOrdId ?? activeCustId;
+      const groupTables = groupKey ? (customerGroupTablesMap.get(groupKey) ?? [t.tableNumber]) : [t.tableNumber];
+      const uniqueGroupTables = Array.from(new Set(groupTables)).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+
+      return {
+        ...t,
+        activeOrderId: t.activeOrderId ?? assignment?.orderIdRef ?? null,
+        activeOrderNumber: t.activeOrderNumber ?? assignment?.orderNumber ?? null,
+        activeOrderStatus: t.activeOrderStatus ?? assignment?.orderStatus ?? null,
+        activeOrderTotal: t.activeOrderTotal ?? assignment?.orderGrandTotal ?? null,
+        activeBillNumber: t.activeBillNumber ?? assignment?.billNumber ?? null,
+        activePaymentStatus: t.activePaymentStatus ?? assignment?.paymentStatus ?? null,
+        customerId: activeCustId ?? null,
+        customerName: t.customerName ?? assignment?.customerName ?? null,
+        customerPhone: t.customerPhone ?? assignment?.customerPhone ?? null,
+        groupTables: uniqueGroupTables,
+      };
+    });
   }
 
   async createTable(tenant: Tenant, input: CreateTable) {
@@ -214,15 +278,28 @@ export class StaffPosRepository {
     return row;
   }
 
-  async assignTable(tenant: Tenant, tableId: string, input: AssignTable) {
+  async assignTable(tenant: Tenant, tableIdOrNull: string | null, input: AssignTable) {
+    const rawIds = input.tableIds && input.tableIds.length > 0 ? input.tableIds : tableIdOrNull ? [tableIdOrNull] : input.tableId ? [input.tableId] : [];
+    const targetTableIds = Array.from(new Set(rawIds));
+    if (!targetTableIds.length) {
+      throw new AppError("At least one table must be selected", 400, "NO_TABLE_SELECTED");
+    }
+
     return db.transaction(async (tx) => {
-      const [table] = await tx
+      const selectedTables = await tx
         .select()
         .from(restaurantTables)
-        .where(and(eq(restaurantTables.id, tableId), eq(restaurantTables.organizationId, tenant.organizationId), eq(restaurantTables.restaurantId, tenant.restaurantId)))
-        .limit(1);
-      if (!table) throw new AppError("Table not found", 404, "TABLE_NOT_FOUND");
-      if (table.status !== "AVAILABLE") throw new AppError("Table is no longer available", 409, "TABLE_NOT_AVAILABLE");
+        .where(and(inArray(restaurantTables.id, targetTableIds), eq(restaurantTables.organizationId, tenant.organizationId), eq(restaurantTables.restaurantId, tenant.restaurantId)));
+
+      if (selectedTables.length !== targetTableIds.length) {
+        throw new AppError("One or more selected tables were not found", 404, "TABLE_NOT_FOUND");
+      }
+
+      const unavailableTables = selectedTables.filter((t) => t.status !== "AVAILABLE");
+      if (unavailableTables.length > 0) {
+        const unavailableNumbers = unavailableTables.map((t) => `Table ${t.tableNumber}`).join(", ");
+        throw new AppError(`This table is no longer available (${unavailableNumbers}). Please select another table.`, 409, "TABLE_NOT_AVAILABLE");
+      }
 
       const [existingCustomer] = await tx
         .select()
@@ -239,20 +316,25 @@ export class StaffPosRepository {
         email: input.customerEmail,
       }).returning())[0];
 
-      const [updatedTable] = await tx
+      const updatedTables = await tx
         .update(restaurantTables)
         .set({ status: "OCCUPIED", updatedAt: new Date() })
-        .where(and(eq(restaurantTables.id, tableId), eq(restaurantTables.status, "AVAILABLE")))
+        .where(and(inArray(restaurantTables.id, targetTableIds), eq(restaurantTables.status, "AVAILABLE")))
         .returning();
-      if (!updatedTable) throw new AppError("Table is no longer available", 409, "TABLE_NOT_AVAILABLE");
+
+      if (updatedTables.length !== targetTableIds.length) {
+        throw new AppError("This table has already been reserved by another customer. Please select available tables.", 409, "TABLE_NOT_AVAILABLE");
+      }
 
       const [employee] = tenant.role === "WAITER" ? await tx.select({ id: employees.id }).from(employees).where(eq(employees.id, tenant.userId)).limit(1) : [undefined];
+      const primaryTable = updatedTables[0];
+
       const [order] = await tx.insert(orders).values({
         organizationId: tenant.organizationId,
         restaurantId: tenant.restaurantId,
         orderNumber: createPublicId("ORD"),
         customerId: customer.id,
-        tableId: table.id,
+        tableId: primaryTable.id,
         waiterId: employee?.id,
         status: "DRAFT",
         subtotal: "0.00",
@@ -261,9 +343,21 @@ export class StaffPosRepository {
         grandTotal: "0.00",
       }).returning();
 
-      await tx.insert(auditLogs).values(this.auditValues(tenant, "TABLE_ASSIGNED", "TABLE", "table", table.id, table.tableNumber));
+      for (const tbl of updatedTables) {
+        await tx.insert(customerTableAssignments).values({
+          organizationId: tenant.organizationId,
+          restaurantId: tenant.restaurantId,
+          customerId: customer.id,
+          tableId: tbl.id,
+          orderId: order.id,
+          status: "ACTIVE",
+          assignedAt: new Date(),
+        });
+        await tx.insert(auditLogs).values(this.auditValues(tenant, "TABLE_ASSIGNED", "TABLE", "table", tbl.id, tbl.tableNumber));
+      }
+
       await tx.insert(auditLogs).values(this.auditValues(tenant, "ORDER_SESSION_CREATED", "ORDER", "order", order.id, order.orderNumber));
-      return { table: updatedTable, customer, order };
+      return { table: primaryTable, tables: updatedTables, customer, order };
     });
   }
 
@@ -851,11 +945,46 @@ export class StaffPosRepository {
       });
       const [updated] = await tx.update(bills).set({ paidAmount: paid.toFixed(2), remainingAmount: Math.max(0, total - paid).toFixed(2), paymentStatus: status }).where(eq(bills.id, bill.id)).returning();
       if (status === "SUCCESS") {
-        const [order] = await tx.select({ id: orders.id, tableId: orders.tableId, waiterId: orders.waiterId }).from(orders).where(eq(orders.id, bill.orderId)).limit(1);
+        const [order] = await tx.select({ id: orders.id, tableId: orders.tableId, waiterId: orders.waiterId, customerId: orders.customerId }).from(orders).where(eq(orders.id, bill.orderId)).limit(1);
         await tx.update(orders).set({ status: "COMPLETED", updatedAt: new Date() }).where(eq(orders.id, bill.orderId));
-        if (order?.tableId) {
-          await tx.update(restaurantTables).set({ status: "AVAILABLE", updatedAt: new Date() }).where(eq(restaurantTables.id, order.tableId));
+
+        const activeAssignments = await tx
+          .select({ id: customerTableAssignments.id, tableId: customerTableAssignments.tableId })
+          .from(customerTableAssignments)
+          .where(and(
+            eq(customerTableAssignments.organizationId, tenant.organizationId),
+            eq(customerTableAssignments.restaurantId, tenant.restaurantId),
+            eq(customerTableAssignments.status, "ACTIVE"),
+            or(
+              eq(customerTableAssignments.orderId, bill.orderId),
+              order?.customerId ? eq(customerTableAssignments.customerId, order.customerId) : undefined
+            )
+          ));
+
+        const tableIdsToRelease = new Set<string>();
+        if (order?.tableId) tableIdsToRelease.add(order.tableId);
+        for (const a of activeAssignments) {
+          tableIdsToRelease.add(a.tableId);
         }
+
+        if (tableIdsToRelease.size > 0) {
+          await tx
+            .update(restaurantTables)
+            .set({ status: "AVAILABLE", updatedAt: new Date() })
+            .where(and(
+              inArray(restaurantTables.id, Array.from(tableIdsToRelease)),
+              eq(restaurantTables.organizationId, tenant.organizationId),
+              eq(restaurantTables.restaurantId, tenant.restaurantId)
+            ));
+        }
+
+        if (activeAssignments.length > 0) {
+          await tx
+            .update(customerTableAssignments)
+            .set({ status: "RELEASED", releasedAt: new Date() })
+            .where(inArray(customerTableAssignments.id, activeAssignments.map((a) => a.id)));
+        }
+
         if (order?.waiterId) {
           const context = await this.orderNotificationContext(tx, tenant, order.id);
           const tableLabel = context?.tableNumber ? `Table T-${context.tableNumber}` : "Table";
@@ -866,7 +995,7 @@ export class StaffPosRepository {
             recipientEmployeeId: order.waiterId,
             type: "PAYMENT_COMPLETED",
             title: "Payment Completed",
-            message: `Payment of ₹${money(bill.grandTotal)} for ${tableLabel} (${bill.billNumber}) completed. Table is now available.`,
+            message: `Payment of ₹${money(bill.grandTotal)} for ${tableLabel} (${bill.billNumber}) completed. All assigned tables are now available.`,
             entityType: "bill",
             entityId: bill.id,
             dedupeKey: `bill:${bill.id}:paid`,

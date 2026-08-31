@@ -9,7 +9,9 @@ const sizeClasses: Record<ModalSize, string> = {
   md: "max-w-md",
   lg: "max-w-lg",
   xl: "max-w-2xl",
-  full: "max-w-5xl",
+  "2xl": "max-w-4xl w-full",
+  "3xl": "max-w-5xl w-full",
+  full: "max-w-[92vw] w-full",
 };
 
 const variantButtonClasses: Record<ModalVariant, string> = {

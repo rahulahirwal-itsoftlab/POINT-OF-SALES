@@ -61,3 +61,8 @@ export const restaurantAdminAuditSchema = paginationSchema.extend({
 export const restaurantAdminNotificationsSchema = paginationSchema.extend({
   status: z.enum(["unread", "read", "all"]).optional(),
 });
+
+export const restaurantAdminRenewSubscriptionSchema = z.object({
+  planId: z.string().uuid(),
+  billingCycle: z.enum(["MONTHLY", "YEARLY"]).default("MONTHLY"),
+});

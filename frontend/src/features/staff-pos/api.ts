@@ -84,6 +84,7 @@ export type TableRow = {
   activePaymentStatus?: string | null;
   customerName?: string | null;
   customerPhone?: string | null;
+  groupTables?: string[];
 };
 
 export type TableDetail = TableRow & {
@@ -154,8 +155,15 @@ export async function getTables() {
   return response.data;
 }
 
-export async function assignTable(tableId: string, input: { customerName: string; customerPhone: string; customerEmail?: string }) {
-  const response = await apiClient.post<ApiOne<{ table: TableRow; customer: { id: string; name: string; phone: string }; order: OrderRow }>>(`/staff-pos/tables/${tableId}/assign`, input);
+export async function assignTable(
+  tableIdOrInput: string | { tableIds?: string[]; tableId?: string; customerName: string; customerPhone: string; customerEmail?: string; numberOfGuests?: number },
+  inputData?: { customerName: string; customerPhone: string; customerEmail?: string; numberOfGuests?: number }
+) {
+  if (typeof tableIdOrInput === "string") {
+    const response = await apiClient.post<ApiOne<{ table: TableRow; customer: { id: string; name: string; phone: string }; order: OrderRow }>>(`/staff-pos/tables/${tableIdOrInput}/assign`, inputData);
+    return response.data;
+  }
+  const response = await apiClient.post<ApiOne<{ table: TableRow; customer: { id: string; name: string; phone: string }; order: OrderRow }>>("/staff-pos/tables/assign", tableIdOrInput);
   return response.data;
 }
 

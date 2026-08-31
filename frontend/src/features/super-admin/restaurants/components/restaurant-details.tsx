@@ -7,10 +7,13 @@ import { LoadingSkeleton } from "@/components/common/loading-skeleton";
 import { StatusBadge } from "@/components/common/status-badge";
 import { getRestaurant } from "../api/restaurant-api";
 
+import { RestaurantBranding } from "@/components/common/restaurant-branding";
+
 type Detail = {
   restaurant: {
     publicId: string;
     name: string;
+    logo?: string | null;
     email?: string | null;
     phone?: string | null;
     address?: string | null;
@@ -85,8 +88,11 @@ export function RestaurantDetails({ id }: { id: string }) {
       <section className="rounded-lg border bg-white p-5">
         <div className="mb-4 flex items-center justify-between">
           <div>
-            <h2 className="text-lg font-semibold">{restaurant.name}</h2>
-            <p className="text-sm text-slate-500">{restaurant.publicId}</p>
+            <RestaurantBranding
+              restaurant={{ name: restaurant.name, logo: restaurant.logo }}
+              size="lg"
+            />
+            <p className="mt-1 text-sm text-slate-500">{restaurant.publicId}</p>
           </div>
           <StatusBadge status={restaurant.status} />
         </div>

@@ -10,6 +10,7 @@ import { PageHeader } from "@/components/common/page-header";
 import { StatusBadge } from "@/components/common/status-badge";
 import { formatCurrency } from "@/lib/formatters/currency";
 import { queryKeys } from "@/lib/query/query-keys";
+import { FilterCard, FilterSearchInput, FilterSelect } from "@/components/common/filters";
 import { createPlan, updatePlan, updatePlanStatus, type PlanPayload } from "../api/plan-api";
 import { usePlans } from "../hooks/use-plans";
 
@@ -62,6 +63,17 @@ export function PlanListPage({ embedded = false }: { embedded?: boolean }) {
   const [editing, setEditing] = useState<PlanRow | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [showForm, setShowForm] = useState(false);
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"ALL" | "ACTIVE" | "INACTIVE">("ALL");
+
+  const filteredRows = useMemo(() => {
+    return rows.filter((plan) => {
+      const matchesSearch = !search || [plan.name, plan.planNumber, plan.code, plan.description].some((f) => f?.toLowerCase().includes(search.toLowerCase()));
+      const matchesStatus = statusFilter === "ALL" ? true : statusFilter === "ACTIVE" ? plan.isActive : !plan.isActive;
+      return matchesSearch && matchesStatus;
+    });
+  }, [rows, search, statusFilter]);
+
   const previewBase = Number(form.billingCycle === "YEARLY" ? form.yearlyPrice : form.monthlyPrice) || 0;
   const previewGst = Number(form.gstPercentage) || 0;
   const previewGstAmount = previewBase * previewGst / 100;
@@ -175,6 +187,28 @@ export function PlanListPage({ embedded = false }: { embedded?: boolean }) {
         </div>
       )}
 
+      <FilterCard
+        title="Plan Filters"
+        activeCount={(search ? 1 : 0) + (statusFilter !== "ALL" ? 1 : 0)}
+        chips={[
+          search ? { key: "search", label: "Search", value: search, onRemove: () => setSearch("") } : undefined,
+          statusFilter !== "ALL" ? { key: "status", label: "Status", value: statusFilter, onRemove: () => setStatusFilter("ALL") } : undefined,
+        ].filter((chip): chip is NonNullable<typeof chip> => Boolean(chip))}
+        onClear={() => { setSearch(""); setStatusFilter("ALL"); }}
+      >
+        <FilterSearchInput value={search} onChange={setSearch} placeholder="Search by plan name, code, plan number..." />
+        <FilterSelect
+          label="Status"
+          value={statusFilter}
+          onChange={(val) => setStatusFilter(val as "ALL" | "ACTIVE" | "INACTIVE")}
+          options={[
+            { value: "ALL", label: "All Statuses" },
+            { value: "ACTIVE", label: "Active Only" },
+            { value: "INACTIVE", label: "Inactive Only" },
+          ]}
+        />
+      </FilterCard>
+
       {showForm ? (
         <form onSubmit={submitPlan} className="heritage-surface rounded-lg p-5">
           <div className="flex items-center justify-between gap-3">
@@ -215,11 +249,11 @@ export function PlanListPage({ embedded = false }: { embedded?: boolean }) {
         </form>
       ) : null}
 
-      {!rows.length ? (
-        <EmptyState title="No subscription plans available." />
+      {!filteredRows.length ? (
+        <EmptyState title="No subscription plans available." description="Try adjusting your search or filters." />
       ) : (
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {rows.map((plan) => {
+          {filteredRows.map((plan) => {
             const billing = billingFor(plan, "MONTHLY");
             return (
               <article key={plan.id} className="heritage-card group rounded-lg p-5">

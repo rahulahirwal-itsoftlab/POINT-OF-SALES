@@ -12,6 +12,8 @@ export class RestaurantAdminService {
   listBills = this.repository.listBills.bind(this.repository);
   getBill = this.repository.getBill.bind(this.repository);
   subscription = this.repository.subscription.bind(this.repository);
+  availablePlans = this.repository.availablePlans.bind(this.repository);
+  renewSubscription = this.repository.renewSubscription.bind(this.repository);
   auditLogs = this.repository.auditLogs.bind(this.repository);
   activityLogs = this.repository.activityLogs.bind(this.repository);
   notifications = this.repository.notifications.bind(this.repository);

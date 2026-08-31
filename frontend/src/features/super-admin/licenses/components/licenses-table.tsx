@@ -25,6 +25,8 @@ import {
   type RenewLicenseInput,
 } from "../api/license-api";
 
+import { LicenseDetailsModal } from "./license-details-modal";
+
 function money(value?: string | number | null, currency = "INR") {
   return formatCurrency(Number(value ?? 0), currency);
 }
@@ -78,6 +80,7 @@ export function LicensesTable() {
   const plansQuery = usePlans();
   const [licenses, setLicenses] = useState<LicenseListItem[]>([]);
   const [selected, setSelected] = useState<LicenseListItem | null>(null);
+  const [selectedDetailLicenseId, setSelectedDetailLicenseId] = useState<string | null>(null);
   const [renewing, setRenewing] = useState<LicenseListItem | null>(null);
   const [historyFor, setHistoryFor] = useState<LicenseListItem | null>(null);
   const [history, setHistory] = useState<LicenseHistoryResponse | null>(null);
@@ -195,66 +198,59 @@ export function LicensesTable() {
 
       <div className="overflow-hidden rounded-xl border bg-white shadow-sm">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[1180px] text-left text-sm">
-            <thead className="border-b bg-slate-50 text-xs uppercase text-slate-500">
+          <table className="w-full min-w-[900px] text-left text-sm">
+            <thead className="border-b bg-slate-50 text-xs uppercase text-slate-500 font-semibold">
               <tr>
-                <th className="px-5 py-3 font-medium">Restaurant</th>
-                <th className="px-5 py-3 font-medium">Plan</th>
-                <th className="px-5 py-3 font-medium">Subscription</th>
-                <th className="px-5 py-3 font-medium">License</th>
-                <th className="px-5 py-3 font-medium">Staff Limits</th>
-                <th className="px-5 py-3 font-medium">Billing</th>
-                <th className="px-5 py-3 font-medium">Validity</th>
-                <th className="px-5 py-3 text-right font-medium">Actions</th>
+                <th className="px-5 py-3">License Number</th>
+                <th className="px-5 py-3">Restaurant</th>
+                <th className="px-5 py-3">Plan Name</th>
+                <th className="px-5 py-3">License Status</th>
+                <th className="px-5 py-3">Expiry Date</th>
+                <th className="px-5 py-3 text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y">
+            <tbody className="divide-y divide-slate-100">
               {loading ? (
-                <tr><td colSpan={8} className="px-6 py-8 text-center text-slate-500">Loading licenses...</td></tr>
+                <tr><td colSpan={6} className="px-6 py-8 text-center text-slate-500">Loading licenses...</td></tr>
               ) : licenses.length === 0 ? (
-                <tr><td colSpan={8} className="px-6 py-8 text-center text-slate-500">No licenses found.</td></tr>
+                <tr><td colSpan={6} className="px-6 py-8 text-center text-slate-500">No licenses found.</td></tr>
               ) : (
                 licenses.map((item) => {
                   const sub = item.subscription;
-                  const currency = sub.currency ?? "INR";
+                  const isExpired = new Date(item.license.expiresAt) < new Date();
+                  const daysLeft = Math.ceil((new Date(item.license.expiresAt).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
                   return (
-                    <tr key={item.license.id} className="hover:bg-slate-50">
+                    <tr key={item.license.id} className="hover:bg-slate-50/50">
                       <td className="px-5 py-4">
-                        <div className="font-semibold text-slate-900">{item.restaurant.name}</div>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedDetailLicenseId(item.license.id)}
+                          className="font-mono font-bold text-slate-900 hover:text-blue-600 transition"
+                        >
+                          {item.license.licenseKey}
+                        </button>
+                      </td>
+                      <td className="px-5 py-4">
+                        <div className="font-bold text-slate-900">{item.restaurant.name}</div>
                         <div className="text-xs text-slate-500">{item.restaurant.email ?? item.restaurant.publicId}</div>
                       </td>
                       <td className="px-5 py-4">
-                        <div className="font-mono text-xs font-bold text-amber-700">{item.plan.planNumber ?? "-"}</div>
                         <div className="font-semibold text-slate-900">{sub.planNameSnapshot ?? item.plan.name}</div>
                         <div className="text-xs text-slate-500">{planKind(item)}</div>
                       </td>
                       <td className="px-5 py-4">
-                        <StatusBadge status={sub.status} />
-                        <div className="mt-1 text-xs text-slate-500">{sub.billingCycle} · {sub.durationMonthsSnapshot ?? "-"} month</div>
+                        <StatusBadge status={item.license.status} />
+                        {item.license.status === "ACTIVE" && !isExpired && daysLeft <= 15 ? (
+                          <div className="mt-1 text-[10px] font-bold text-amber-600">Expires in {daysLeft} days</div>
+                        ) : null}
                       </td>
-                      <td className="px-5 py-4">
-                        <div className="font-mono text-xs font-bold text-slate-900">{item.license.licenseKey}</div>
-                        <div className="mt-1"><StatusBadge status={item.license.status} /></div>
-                      </td>
-                      <td className="px-5 py-4 text-xs text-slate-600">
-                        <div>Waiter: <span className="font-semibold text-slate-900">{sub.waiterLimitSnapshot ?? "-"}</span></div>
-                        <div>Kitchen: <span className="font-semibold text-slate-900">{sub.kitchenLimitSnapshot ?? "-"}</span></div>
-                        <div>Reception: <span className="font-semibold text-slate-900">{sub.receptionistLimitSnapshot ?? "-"}</span></div>
-                      </td>
-                      <td className="px-5 py-4 text-xs text-slate-600">
-                        <div>Base: <span className="font-semibold text-slate-900">{money(sub.baseAmountSnapshot ?? sub.price, currency)}</span></div>
-                        <div>GST: <span className="font-semibold text-slate-900">{sub.gstPercentageSnapshot ?? "0"}%</span></div>
-                        <div>Final: <span className="font-bold text-slate-900">{money(sub.finalAmountSnapshot ?? sub.price, currency)}</span></div>
-                      </td>
-                      <td className="px-5 py-4 text-xs text-slate-600">
-                        <div>{format(new Date(sub.startDate), "MMM d, yyyy")}</div>
-                        <div className="font-semibold text-slate-900">to {format(new Date(sub.endDate), "MMM d, yyyy")}</div>
-                        <div className="mt-1 text-slate-500">License: {format(new Date(item.license.expiresAt), "MMM d, yyyy")}</div>
+                      <td className="px-5 py-4 font-medium text-slate-700 text-xs">
+                        {format(new Date(item.license.expiresAt), "MMM d, yyyy")}
                       </td>
                       <td className="px-5 py-4 text-right">
                         <ActionDropdown
                           items={[
-                            { label: "View Details", icon: <Eye className="h-4 w-4" />, onClick: () => setSelected(item) },
+                            { label: "View Details", icon: <Eye className="h-4 w-4" />, onClick: () => setSelectedDetailLicenseId(item.license.id) },
                             { label: "Renew Subscription", icon: <RotateCw className="h-4 w-4" />, onClick: () => setRenewing(item) },
                             { label: "View History", icon: <Clock className="h-4 w-4" />, onClick: () => openHistory(item) },
                             { label: "View Subscription", icon: <RotateCw className="h-4 w-4" />, onClick: () => window.location.assign(`/super-admin/subscriptions/${sub.id}`) },
@@ -286,6 +282,23 @@ export function LicensesTable() {
         onPageSizeChange={(newLimit) => { setLimit(newLimit); setPage(1); }}
         showPageSize
         loading={loading}
+      />
+
+      {/* License Overview Modal */}
+      <LicenseDetailsModal
+        licenseId={selectedDetailLicenseId}
+        isOpen={Boolean(selectedDetailLicenseId)}
+        onClose={() => setSelectedDetailLicenseId(null)}
+        onOpenRenew={() => {
+          const item = licenses.find((l) => l.license.id === selectedDetailLicenseId);
+          setSelectedDetailLicenseId(null);
+          if (item) setRenewing(item);
+        }}
+        onOpenHistory={() => {
+          const item = licenses.find((l) => l.license.id === selectedDetailLicenseId);
+          setSelectedDetailLicenseId(null);
+          if (item) void openHistory(item);
+        }}
       />
 
       {selected ? (

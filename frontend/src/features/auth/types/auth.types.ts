@@ -12,6 +12,9 @@ export type AuthUser = {
   restaurantId?: string | null;
   organizationIds?: string[];
   restaurantIds: string[];
+  restaurant?: { id: string; name: string; logo?: string | null } | null;
+  restaurantName?: string | null;
+  restaurantLogo?: string | null;
   lastLoginAt?: string | null;
 };
 

@@ -1,4 +1,4 @@
-import { and, count, desc, eq, gte, ilike, lt, lte, or, sql, type SQL } from "drizzle-orm";
+import { and, count, desc, eq, gte, ilike, inArray, not, notIlike, lt, lte, or, sql, type SQL } from "drizzle-orm";
 import { buildDashboardDateRange, createDateSeries, serializeDashboardDateRange, type dashboardDateRangeQuerySchema } from "../../common/dashboard/date-range.js";
 import { db } from "../../config/database.js";
 import { hashPassword } from "../../common/auth/password.js";
@@ -43,6 +43,16 @@ type StaffStatusInput = z.infer<typeof restaurantAdminStaffStatusSchema>;
 type BillsQuery = z.infer<typeof restaurantAdminBillsSchema>;
 type AuditQuery = z.infer<typeof restaurantAdminAuditSchema>;
 type NotificationsQuery = z.infer<typeof restaurantAdminNotificationsSchema>;
+
+function addMonthsUtc(date: Date, months: number) {
+  const result = new Date(date.getTime());
+  const day = result.getUTCDate();
+  result.setUTCDate(1);
+  result.setUTCMonth(result.getUTCMonth() + months);
+  const lastDay = new Date(Date.UTC(result.getUTCFullYear(), result.getUTCMonth() + 1, 0)).getUTCDate();
+  result.setUTCDate(Math.min(day, lastDay));
+  return result;
+}
 
 function pageInput(query: { page?: number; limit?: number }) {
   const page = query.page ?? 1;
@@ -298,20 +308,6 @@ export class RestaurantAdminRepository {
         newValues: { role: employee.role, status: employee.status, shift: input.shift, assignedSection: input.assignedSection, kitchenStation: input.kitchenStation },
       });
 
-      await tx.insert(notifications).values({
-        scope: "RESTAURANT",
-        organizationId: tenant.organizationId,
-        restaurantId: tenant.restaurantId,
-        recipientAdminId: tenant.adminId,
-        recipientRole: "RESTAURANT_ADMIN",
-        type: "STAFF_CREATED",
-        title: "Staff member created",
-        message: `${employee.fullName} was added as ${employee.role}.`,
-        entityType: "employee",
-        entityId: employee.id,
-        dedupeKey: `employee:${employee.id}:created`,
-      }).onConflictDoNothing();
-
       return { ...employee, passwordHash: undefined };
     });
   }
@@ -453,6 +449,7 @@ export class RestaurantAdminRepository {
   async subscription(tenant: Tenant) {
     const [row] = await db.select({
       id: subscriptions.id,
+      planNumber: plans.planNumber,
       planName: plans.name,
       planCode: plans.code,
       billingCycle: subscriptions.billingCycle,
@@ -508,6 +505,192 @@ export class RestaurantAdminRepository {
       roleUsage: staffLimitState.usage,
       remainingDays: daysBetween(new Date(), row.endDate),
     };
+  }
+
+  async availablePlans(tenant: Tenant) {
+    const commonPlans = await db
+      .select()
+      .from(plans)
+      .where(
+        and(
+          eq(plans.planType, "PREDEFINED"),
+          eq(plans.isActive, true),
+          notIlike(plans.code, "CUSTOM-%")
+        )
+      )
+      .orderBy(desc(plans.createdAt));
+
+    const customPlans = await db
+      .select()
+      .from(plans)
+      .where(
+        and(
+          eq(plans.planType, "CUSTOMIZED"),
+          eq(plans.restaurantId, tenant.restaurantId),
+          eq(plans.isActive, true)
+        )
+      )
+      .orderBy(desc(plans.createdAt));
+
+    return {
+      commonPlans,
+      customPlan: customPlans[0] ?? null,
+    };
+  }
+
+  async renewSubscription(tenant: Tenant, input: { planId: string; billingCycle: "MONTHLY" | "YEARLY" }) {
+    return db.transaction(async (tx) => {
+      const [selectedPlan] = await tx
+        .select()
+        .from(plans)
+        .where(and(eq(plans.id, input.planId), eq(plans.isActive, true)))
+        .limit(1);
+
+      if (!selectedPlan) {
+        throw new AppError("Subscription plan not found or inactive", 404, "PLAN_NOT_FOUND");
+      }
+
+      if (selectedPlan.planType === "CUSTOMIZED" && selectedPlan.restaurantId !== tenant.restaurantId) {
+        throw new AppError("Access denied to custom plan", 403, "UNAUTHORIZED_CUSTOM_PLAN");
+      }
+
+      const [existingSub] = await tx
+        .select()
+        .from(subscriptions)
+        .where(and(eq(subscriptions.organizationId, tenant.organizationId), eq(subscriptions.restaurantId, tenant.restaurantId)))
+        .orderBy(desc(subscriptions.endDate))
+        .limit(1);
+
+      const now = new Date();
+      const startDate = existingSub && existingSub.status === "ACTIVE" && existingSub.endDate > now
+        ? existingSub.endDate
+        : now;
+
+      const durationMonths = selectedPlan.durationMonths ?? (input.billingCycle === "YEARLY" ? 12 : 1);
+      const endDate = addMonthsUtc(startDate, durationMonths);
+      const renewalDate = endDate;
+
+      const basePrice = Number(input.billingCycle === "YEARLY" ? selectedPlan.yearlyPrice : selectedPlan.monthlyPrice);
+      const gstPercentage = Number(selectedPlan.gstPercentage ?? 18);
+      const gstAmount = (basePrice * gstPercentage) / 100;
+      const finalAmount = basePrice + gstAmount;
+
+      const waiterLimit = selectedPlan.waiterLimit ?? Math.max((selectedPlan.maxUsers ?? 0) - 2, 1);
+      const kitchenLimit = selectedPlan.kitchenLimit ?? 1;
+      const receptionistLimit = selectedPlan.receptionistLimit ?? 1;
+
+      let subId = existingSub?.id;
+      let subscriptionRow;
+
+      if (existingSub) {
+        [subscriptionRow] = await tx
+          .update(subscriptions)
+          .set({
+            planId: selectedPlan.id,
+            planNameSnapshot: selectedPlan.name,
+            waiterLimitSnapshot: waiterLimit,
+            kitchenLimitSnapshot: kitchenLimit,
+            receptionistLimitSnapshot: receptionistLimit,
+            baseAmountSnapshot: basePrice.toFixed(2),
+            gstPercentageSnapshot: gstPercentage.toFixed(2),
+            gstAmountSnapshot: gstAmount.toFixed(2),
+            finalAmountSnapshot: finalAmount.toFixed(2),
+            durationMonthsSnapshot: durationMonths,
+            billingCycle: input.billingCycle,
+            price: finalAmount.toFixed(2),
+            status: "ACTIVE",
+            paymentStatus: "SUCCESS",
+            startDate,
+            endDate,
+            renewalDate,
+            updatedAt: now,
+          })
+          .where(eq(subscriptions.id, existingSub.id))
+          .returning();
+      } else {
+        [subscriptionRow] = await tx
+          .insert(subscriptions)
+          .values({
+            organizationId: tenant.organizationId,
+            restaurantId: tenant.restaurantId,
+            planId: selectedPlan.id,
+            planNameSnapshot: selectedPlan.name,
+            waiterLimitSnapshot: waiterLimit,
+            kitchenLimitSnapshot: kitchenLimit,
+            receptionistLimitSnapshot: receptionistLimit,
+            baseAmountSnapshot: basePrice.toFixed(2),
+            gstPercentageSnapshot: gstPercentage.toFixed(2),
+            gstAmountSnapshot: gstAmount.toFixed(2),
+            finalAmountSnapshot: finalAmount.toFixed(2),
+            durationMonthsSnapshot: durationMonths,
+            billingCycle: input.billingCycle,
+            price: finalAmount.toFixed(2),
+            currency: "INR",
+            status: "ACTIVE",
+            paymentStatus: "SUCCESS",
+            startDate,
+            endDate,
+            renewalDate,
+          })
+          .returning();
+        subId = subscriptionRow.id;
+      }
+
+      const [existingLicense] = await tx
+        .select()
+        .from(licenses)
+        .where(eq(licenses.subscriptionId, subId!))
+        .limit(1);
+
+      if (existingLicense) {
+        await tx
+          .update(licenses)
+          .set({
+            status: "ACTIVE",
+            expiresAt: endDate,
+            updatedAt: now,
+          })
+          .where(eq(licenses.id, existingLicense.id));
+      } else {
+        const licenseKey = `LIC-${Math.random().toString(36).substring(2, 10).toUpperCase()}`;
+        await tx.insert(licenses).values({
+          organizationId: tenant.organizationId,
+          restaurantId: tenant.restaurantId,
+          subscriptionId: subId!,
+          licenseKey,
+          status: "ACTIVE",
+          issuedAt: now,
+          expiresAt: endDate,
+        });
+      }
+
+      await tx.insert(auditLogs).values({
+        actorRole: "RESTAURANT_ADMIN",
+        organizationId: tenant.organizationId,
+        restaurantId: tenant.restaurantId,
+        action: "SUBSCRIPTION_RENEWED",
+        module: "SUBSCRIPTION",
+        entityType: "subscription",
+        entityId: subId!,
+        subscriptionId: subId!,
+        entityPublicId: subId!,
+      });
+
+      await tx.insert(notifications).values({
+        scope: "SYSTEM",
+        organizationId: tenant.organizationId,
+        restaurantId: tenant.restaurantId,
+        recipientRole: "RESTAURANT_ADMIN",
+        type: "SUBSCRIPTION_RENEWED",
+        title: "Subscription renewed successfully",
+        message: `Your subscription to ${selectedPlan.name} has been renewed until ${endDate.toISOString().slice(0, 10)}.`,
+        entityType: "subscription",
+        entityId: subId!,
+        dedupeKey: `subscription:${subId}:renewed:${now.getTime()}`,
+      }).onConflictDoNothing();
+
+      return subscriptionRow;
+    });
   }
 
   async checkStaffRoleLimit(tenant: Tenant, role?: StaffRole): Promise<StaffLimitState> {
@@ -610,10 +793,12 @@ export class RestaurantAdminRepository {
     const recipientCondition = tenant.adminId
       ? or(eq(notifications.recipientAdminId, tenant.adminId), eq(notifications.recipientRole, "RESTAURANT_ADMIN"))
       : eq(notifications.recipientRole, "RESTAURANT_ADMIN");
+    const excludedAccountCreationTypes = ["ACCOUNT_CREATED", "USER_CREATED", "ROLE_CREATED", "RESTAURANT_CREATED", "STAFF_CREATED"];
     const filters = [
       eq(notifications.organizationId, tenant.organizationId),
       eq(notifications.restaurantId, tenant.restaurantId),
       recipientCondition,
+      not(inArray(notifications.type, excludedAccountCreationTypes)),
       query.status === "read" ? eq(notifications.isRead, true) : undefined,
       query.status === "unread" ? eq(notifications.isRead, false) : undefined,
       query.search ? or(ilike(notifications.title, `%${query.search}%`), ilike(notifications.message, `%${query.search}%`), ilike(notifications.type, `%${query.search}%`)) : undefined,

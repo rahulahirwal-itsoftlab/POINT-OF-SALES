@@ -10,6 +10,7 @@ import {
   restaurantAdminCreateStaffSchema,
   restaurantAdminListStaffSchema,
   restaurantAdminNotificationsSchema,
+  restaurantAdminRenewSubscriptionSchema,
   restaurantAdminStaffStatusSchema,
   restaurantAdminUpdateStaffSchema,
 } from "./restaurant-admin.validation.js";
@@ -67,6 +68,16 @@ export class RestaurantAdminController {
 
   subscription(c: Context) {
     return this.withData(c, () => this.service.subscription(this.tenant(c)), "Subscription loaded");
+  }
+
+  availablePlans(c: Context) {
+    return this.withData(c, () => this.service.availablePlans(this.tenant(c)), "Available plans loaded");
+  }
+
+  async renewSubscription(c: Context) {
+    const input = await validateJson(c, restaurantAdminRenewSubscriptionSchema);
+    const data = await this.service.renewSubscription(this.tenant(c), input);
+    return c.json(successResponse(data, "Subscription renewed successfully"));
   }
 
   auditLogs(c: Context) {
