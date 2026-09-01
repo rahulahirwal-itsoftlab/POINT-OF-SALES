@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState, useEffect } from "react";
+import Image from "next/image";
 import { ImagePlus, Loader2, Trash2, UploadCloud, RefreshCw } from "lucide-react";
 import toast from "react-hot-toast";
 import { getImageUrl } from "@/lib/images/image-url";
@@ -94,10 +95,13 @@ export function RestaurantLogoUploader({
               <span className="mt-1 text-[10px] font-medium">Uploading...</span>
             </div>
           ) : previewSource ? (
-            <img
+            <Image
               src={previewSource}
               alt="Restaurant Logo Preview"
-              className="h-full w-full object-cover transition"
+              fill
+              sizes="96px"
+              className="object-cover transition"
+              unoptimized={previewSource.startsWith("data:") || previewSource.startsWith("blob:")}
             />
           ) : (
             <div className="flex flex-col items-center justify-center p-2 text-center text-slate-400">

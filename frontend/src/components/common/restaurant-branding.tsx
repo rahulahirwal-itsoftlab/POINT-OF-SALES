@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import { Store } from "lucide-react";
 import { useCurrentUser } from "@/features/auth/hooks/use-auth";
 import { getImageUrl } from "@/lib/images/image-url";
@@ -90,11 +91,14 @@ export function RestaurantBranding({
           )}
         >
           {logoUrl && !imageError ? (
-            <img
+            <Image
               src={logoUrl}
               alt={name}
-              className="h-full w-full object-cover"
+              fill
+              sizes="(max-width: 768px) 64px, 128px"
+              className="object-cover"
               onError={() => setImageError(true)}
+              unoptimized={logoUrl.startsWith("data:") || logoUrl.startsWith("blob:")}
             />
           ) : (
             <div className="flex h-full w-full items-center justify-center font-bold uppercase text-[var(--muted)]">

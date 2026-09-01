@@ -1,7 +1,7 @@
 "use client";
 
 import { format } from "date-fns";
-import { Key, Building2, CreditCard, ShieldCheck, Clock, RotateCw, History } from "lucide-react";
+import { Key, Building2, CreditCard, RotateCw, History } from "lucide-react";
 import { CommonModal } from "@/components/common/modal";
 import { LoadingSkeleton } from "@/components/common/loading-skeleton";
 import { ErrorState } from "@/components/common/error-state";
