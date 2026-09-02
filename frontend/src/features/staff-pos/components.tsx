@@ -1760,6 +1760,7 @@ export function RestaurantAdminMenuManagementPage() {
   const { data: categoryData } = useCategories();
   const updateMenuItem = useUpdateMenuItem();
   const createMenuItem = useCreateMenuItem();
+  const deleteMenuItem = useDeleteMenuItem();
   const createCategory = useCreateCategory();
   const uploadImage = useUploadMenuImage();
 
@@ -1771,13 +1772,11 @@ export function RestaurantAdminMenuManagementPage() {
   const debouncedSearch = useDebounce(search, 300);
   const [selectedCategory, setSelectedCategory] = useState("");
   const [selectedAvailability, setSelectedAvailability] = useState("");
-  const [selectedStatus, setSelectedStatus] = useState("");
 
   // Modals state
   const [isItemModalOpen, setIsItemModalOpen] = useState(false);
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<MenuRow["item"] | null>(null);
-  const [detailsItem, setDetailsItem] = useState<MenuRow | null>(null);
 
   // Form state
   const [form, setForm] = useState<MenuItemForm>({
@@ -1795,7 +1794,7 @@ export function RestaurantAdminMenuManagementPage() {
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
 
-  const [statusDialog, setStatusDialog] = useState<{ isOpen: boolean; item: MenuRow["item"] | null }>({
+  const [deleteDialog, setDeleteDialog] = useState<{ isOpen: boolean; item: MenuRow["item"] | null }>({
     isOpen: false,
     item: null,
   });
@@ -1805,8 +1804,7 @@ export function RestaurantAdminMenuManagementPage() {
     const matchesSearch = !debouncedSearch || item.name.toLowerCase().includes(debouncedSearch.toLowerCase()) || category.name.toLowerCase().includes(debouncedSearch.toLowerCase());
     const matchesCategory = !selectedCategory || category.id === selectedCategory;
     const matchesAvailability = !selectedAvailability || (selectedAvailability === "available" ? item.isAvailable : !item.isAvailable);
-    const matchesStatus = !selectedStatus || (selectedStatus === "active" ? item.isActive : !item.isActive);
-    return matchesSearch && matchesCategory && matchesAvailability && matchesStatus;
+    return matchesSearch && matchesCategory && matchesAvailability;
   });
 
   function openAddModal() {
@@ -2263,7 +2261,8 @@ export function RestaurantAdminMenuManagementPage() {
 
 
 
-export const StaffMenuPage = ReceptionistMenuPage;
+export const ReceptionistMenuPage = StaffMenuViewPage;
+export const StaffMenuPage = StaffMenuViewPage;
 
 export function StaffMenuViewPage() {
   const { data, isLoading, isError, refetch } = useMenu();
