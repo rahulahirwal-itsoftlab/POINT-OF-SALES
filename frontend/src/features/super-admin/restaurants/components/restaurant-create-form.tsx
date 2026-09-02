@@ -9,6 +9,7 @@ import { extractApiError } from "@/lib/api/client";
 import type { CreateRestaurantInput } from "../types/restaurant.types";
 import { uploadRestaurantLogo } from "../api/restaurant-api";
 import { RestaurantLogoUploader } from "@/components/common/restaurant-logo-uploader";
+import { Eye, EyeOff } from "lucide-react";
 
 type Plan = {
   id: string;
@@ -48,7 +49,6 @@ export function RestaurantCreateForm({ onSuccess }: { onSuccess?: () => void }) 
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [form, setForm] = useState({
     restaurantName: "",
-    restaurantCode: "Auto Generated ",
     businessEmail: "",
     businessPhone: "",
     alternatePhone: "",
@@ -147,7 +147,7 @@ export function RestaurantCreateForm({ onSuccess }: { onSuccess?: () => void }) 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (form.password !== form.confirmPassword) {
-      toast.error("Owner password and confirmation must match.");
+      toast.error("Passwords do not match.");
       return;
     }
     if (form.planType === "PREDEFINED" && !form.planId) {
@@ -203,9 +203,8 @@ export function RestaurantCreateForm({ onSuccess }: { onSuccess?: () => void }) 
       },
       admin: {
         name: form.ownerName,
-        email: form.ownerEmail,
-        loginEmail: form.loginEmail || form.ownerEmail,
-        phone: form.ownerPhone || undefined,
+        email: form.loginEmail,
+        loginEmail: form.loginEmail,
         loginPassword: form.password,
         confirmPassword: form.confirmPassword,
       },
@@ -234,7 +233,6 @@ export function RestaurantCreateForm({ onSuccess }: { onSuccess?: () => void }) 
       license: {
         startDate: form.startDate,
         renewalDate: form.renewalDate,
-        status: form.licenseStatus as CreateRestaurantInput["license"] extends infer L ? L extends { status?: infer S } ? S : never : never,
       },
     };
 
@@ -264,7 +262,6 @@ export function RestaurantCreateForm({ onSuccess }: { onSuccess?: () => void }) 
         <p className="mt-1 text-sm text-slate-500">Create the organization tenant and the primary restaurant profile.</p>
         <div className="mt-4 grid gap-4 md:grid-cols-2">
           <label className={labelClass}>Restaurant Name *<input required className={inputClass} value={form.restaurantName} onChange={(e) => update("restaurantName", e.target.value)} /></label>
-          <label className={labelClass}>Restaurant Code<input readOnly className={`${inputClass} bg-slate-50`} value={form.restaurantCode} /></label>
           <label className={labelClass}>Restaurant Email *<input required type="email" className={inputClass} value={form.businessEmail} onChange={(e) => update("businessEmail", e.target.value)} /></label>
           <label className={labelClass}>Phone *<input required className={inputClass} value={form.businessPhone} onChange={(e) => update("businessPhone", e.target.value)} /></label>
           <label className={labelClass}>Alternate Phone<input className={inputClass} value={form.alternatePhone} onChange={(e) => update("alternatePhone", e.target.value)} /></label>
@@ -297,30 +294,64 @@ export function RestaurantCreateForm({ onSuccess }: { onSuccess?: () => void }) 
 
       <section className="rounded-lg border bg-white p-5 shadow-sm">
         <h2 className="text-base font-semibold text-slate-950">Restaurant Admin / Owner</h2>
-        <p className="mt-1 text-sm text-slate-500">These credentials are active immediately after creation. No invitation is required.</p>
+        <p className="mt-1 text-sm text-slate-500">Primary administrator credentials for managing this restaurant tenant.</p>
         <div className="mt-4 grid gap-4 md:grid-cols-2">
           <label className={labelClass}>Owner Name *<input required className={inputClass} value={form.ownerName} onChange={(e) => update("ownerName", e.target.value)} /></label>
-          <label className={labelClass}>Owner Email *<input required type="email" className={inputClass} value={form.ownerEmail} onChange={(e) => update("ownerEmail", e.target.value)} /></label>
-          <label className={labelClass}>Login Email *<input required type="email" className={inputClass} value={form.loginEmail} onChange={(e) => update("loginEmail", e.target.value)} /><span className={helperClass}>This is the Restaurant Admin username.</span></label>
-          <label className={labelClass}>Owner Phone<input className={inputClass} value={form.ownerPhone} onChange={(e) => update("ownerPhone", e.target.value)} /></label>
-          <label className={labelClass}>Login Password *
+          <label className={labelClass}>Email *<input required type="email" className={inputClass} value={form.loginEmail} onChange={(e) => update("loginEmail", e.target.value)} /><span className={helperClass}>Used for administrator authentication.</span></label>
+          <label className={labelClass}>Password *
             <div className="relative">
-              <input required minLength={8} type={showPassword ? "text" : "password"} className={`${inputClass} pr-20`} value={form.password} onChange={(e) => update("password", e.target.value)} />
-              <button type="button" onClick={() => setShowPassword((value) => !value)} className="absolute right-2 top-2 rounded px-2 py-1 text-xs font-medium text-slate-600 hover:bg-slate-100">{showPassword ? "Hide" : "Show"}</button>
+              <input
+                required
+                minLength={8}
+                type={showPassword ? "text" : "password"}
+                autoComplete="new-password"
+                onCopy={(e) => e.preventDefault()}
+                onCut={(e) => e.preventDefault()}
+                onPaste={(e) => e.preventDefault()}
+                className={`${inputClass} pr-10`}
+                value={form.password}
+                onChange={(e) => update("password", e.target.value)}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((value) => !value)}
+                aria-label={showPassword ? "Hide password" : "Show password"}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded p-1 text-slate-400 hover:text-slate-600 focus:outline-none focus:text-slate-600 transition"
+              >
+                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
             </div>
           </label>
           <label className={labelClass}>Confirm Password *
             <div className="relative">
-              <input required minLength={8} type={showConfirmPassword ? "text" : "password"} className={`${inputClass} pr-20`} value={form.confirmPassword} onChange={(e) => update("confirmPassword", e.target.value)} />
-              <button type="button" onClick={() => setShowConfirmPassword((value) => !value)} className="absolute right-2 top-2 rounded px-2 py-1 text-xs font-medium text-slate-600 hover:bg-slate-100">{showConfirmPassword ? "Hide" : "Show"}</button>
+              <input
+                required
+                minLength={8}
+                type={showConfirmPassword ? "text" : "password"}
+                autoComplete="new-password"
+                onCopy={(e) => e.preventDefault()}
+                onCut={(e) => e.preventDefault()}
+                onPaste={(e) => e.preventDefault()}
+                className={`${inputClass} pr-10`}
+                value={form.confirmPassword}
+                onChange={(e) => update("confirmPassword", e.target.value)}
+              />
+              <button
+                type="button"
+                onClick={() => setShowConfirmPassword((value) => !value)}
+                aria-label={showConfirmPassword ? "Hide confirm password" : "Show confirm password"}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded p-1 text-slate-400 hover:text-slate-600 focus:outline-none focus:text-slate-600 transition"
+              >
+                {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
             </div>
           </label>
         </div>
       </section>
 
       <section className="rounded-lg border bg-white p-5 shadow-sm">
-        <h2 className="text-base font-semibold text-slate-950">Subscription & License</h2>
-        <p className="mt-1 text-sm text-slate-500">The backend calculates GST, expiry, subscription, and license records in one transaction.</p>
+        <h2 className="text-base font-semibold text-slate-950">Subscription & Plan</h2>
+        <p className="mt-1 text-sm text-slate-500">The backend calculates GST, duration, and active license in one transaction.</p>
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
           <button type="button" onClick={() => update("planType", "PREDEFINED")} className={`rounded-lg border px-4 py-3 text-left text-sm transition duration-200 ${form.planType === "PREDEFINED" ? "border-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_12%,var(--surface))] text-[var(--text)] shadow-[var(--shadow-soft)]" : "border-[var(--border-soft)] bg-[var(--surface)] text-[var(--text)] hover:border-[var(--accent)] hover:bg-[var(--surface-strong)]"}`}>
             <span className="block font-semibold">Predefined Plan</span>
@@ -390,7 +421,6 @@ export function RestaurantCreateForm({ onSuccess }: { onSuccess?: () => void }) 
           <label className={labelClass}>Currency<input className={inputClass} value={form.currency} onChange={(e) => update("currency", e.target.value.toUpperCase())} /></label>
           <label className={labelClass}>Start Date *<input required type="date" className={inputClass} value={form.startDate} onChange={(e) => update("startDate", e.target.value)} /></label>
           <label className={labelClass}>Calculated Expiry<input readOnly type="date" className={`${inputClass} bg-slate-50`} value={form.endDate} /></label>
-          <label className={labelClass}>License Status<select className={inputClass} value={form.licenseStatus} onChange={(e) => update("licenseStatus", e.target.value)}><option value="ACTIVE">Active</option><option value="SUSPENDED">Suspended</option></select></label>
         </div>
       </section>
 

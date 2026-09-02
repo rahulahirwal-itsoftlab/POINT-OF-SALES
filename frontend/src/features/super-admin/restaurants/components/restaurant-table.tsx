@@ -20,6 +20,8 @@ import { RestaurantBranding } from "@/components/common/restaurant-branding";
 import { SubscriptionManageModal } from "./subscription-manage-modal";
 import { RestaurantDetailsModal } from "./restaurant-details-modal";
 
+
+
 export function RestaurantTable() {
   const router = useRouter();
   const [page, setPage] = useState(1);
@@ -59,7 +61,14 @@ export function RestaurantTable() {
     subscriptionStatus: subscriptionStatus || undefined,
     licenseStatus: licenseStatus || undefined,
   });
-  const rows = data?.data ?? [];
+
+  const rows: RestaurantSummary[] = Array.isArray(data?.data)
+    ? data.data
+    : Array.isArray((data as unknown as Record<string, unknown>)?.restaurants)
+    ? ((data as unknown as Record<string, unknown>).restaurants as RestaurantSummary[])
+    : [];
+
+  const meta = data?.meta || (data as unknown as Record<string, unknown>)?.meta as { total: number; page: number; limit: number } | undefined;
 
   async function handleConfirmStatusAction() {
     if (!statusDialog.restaurant || !statusDialog.action) return;
@@ -144,6 +153,8 @@ export function RestaurantTable() {
                   <th className="px-4 py-3">Phone</th>
                   <th className="px-4 py-3">Location</th>
                   <th className="px-4 py-3">Status</th>
+                  <th className="px-4 py-3">Subscription</th>
+                  <th className="px-4 py-3">License</th>
                   <th className="px-4 py-3 text-right">Actions</th>
                 </tr>
               </thead>
@@ -210,6 +221,9 @@ export function RestaurantTable() {
                             size="sm"
                           />
                         </button>
+                        {restaurant.code && (
+                          <div className="text-[11px] font-mono text-slate-400 mt-0.5">{restaurant.code}</div>
+                        )}
                       </td>
                       <td className="px-4 py-3">
                         <div className="font-semibold text-slate-900">{restaurant.ownerName ?? "-"}</div>
@@ -221,7 +235,13 @@ export function RestaurantTable() {
                         {[restaurant.city, restaurant.state].filter(Boolean).join(", ") || "-"}
                       </td>
                       <td className="px-4 py-3">
-                        <StatusBadge status={restaurant.status} />
+                        <StatusBadge status={restaurant.status ?? "INACTIVE"} />
+                      </td>
+                      <td className="px-4 py-3">
+                        <StatusBadge status={restaurant.subscriptionStatus ?? "ACTIVE"} />
+                      </td>
+                      <td className="px-4 py-3">
+                        <StatusBadge status={restaurant.licenseStatus ?? "ACTIVE"} />
                       </td>
                       <td className="px-4 py-3 text-right">
                         <ActionDropdown items={menuItems} />
@@ -235,16 +255,16 @@ export function RestaurantTable() {
         </div>
       )}
 
-      {data?.meta && data.meta.total > data.meta.limit ? (
+      {meta && meta.total > meta.limit ? (
         <div className="flex items-center justify-between text-sm text-slate-500">
           <span>
-            Page {data.meta.page} of {Math.ceil(data.meta.total / data.meta.limit)}
+            Page {meta.page} of {Math.ceil(meta.total / meta.limit)}
           </span>
           <div className="flex gap-2">
             <button disabled={page === 1} onClick={() => setPage((value) => value - 1)} className="rounded border px-3 py-1 disabled:opacity-50">
               Previous
             </button>
-            <button disabled={page * data.meta.limit >= data.meta.total} onClick={() => setPage((value) => value + 1)} className="rounded border px-3 py-1 disabled:opacity-50">
+            <button disabled={page * meta.limit >= meta.total} onClick={() => setPage((value) => value + 1)} className="rounded border px-3 py-1 disabled:opacity-50">
               Next
             </button>
           </div>

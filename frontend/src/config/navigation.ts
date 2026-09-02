@@ -17,6 +17,7 @@ export const navigationSections = [
     items: [
       { label: "Dashboard", href: "/restaurant-admin/dashboard" },
       { label: "Staff", href: "/restaurant-admin/staff" },
+      { label: "Menu", href: "/admin/menu" },
       { label: "Bills", href: "/restaurant-admin/bills" },
       { label: "Subscription", href: "/restaurant-admin/subscription" },
       { label: "Notifications", href: "/restaurant-admin/notifications" },

@@ -1748,16 +1748,17 @@ type MenuItemForm = {
   categoryId: string;
   description: string;
   price: string;
+  taxRate: string;
   imageUrl: string | null;
   imagePublicId: string | null;
   isAvailable: boolean;
+  isActive: boolean;
 };
 
-export function ReceptionistMenuPage() {
+export function RestaurantAdminMenuManagementPage() {
   const { data: menuData, isLoading: menuLoading, isError: menuError, refetch } = useMenu();
   const { data: categoryData } = useCategories();
   const updateMenuItem = useUpdateMenuItem();
-  const deleteMenuItem = useDeleteMenuItem();
   const createMenuItem = useCreateMenuItem();
   const createCategory = useCreateCategory();
   const uploadImage = useUploadMenuImage();
@@ -1770,11 +1771,13 @@ export function ReceptionistMenuPage() {
   const debouncedSearch = useDebounce(search, 300);
   const [selectedCategory, setSelectedCategory] = useState("");
   const [selectedAvailability, setSelectedAvailability] = useState("");
+  const [selectedStatus, setSelectedStatus] = useState("");
 
   // Modals state
   const [isItemModalOpen, setIsItemModalOpen] = useState(false);
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<MenuRow["item"] | null>(null);
+  const [detailsItem, setDetailsItem] = useState<MenuRow | null>(null);
 
   // Form state
   const [form, setForm] = useState<MenuItemForm>({
@@ -1782,16 +1785,17 @@ export function ReceptionistMenuPage() {
     categoryId: "",
     description: "",
     price: "",
+    taxRate: "0",
     imageUrl: null,
     imagePublicId: null,
     isAvailable: true,
+    isActive: true,
   });
   const [categoryForm, setCategoryForm] = useState({ name: "", description: "" });
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
 
-  // Delete Dialog state
-  const [deleteDialog, setDeleteDialog] = useState<{ isOpen: boolean; item: MenuRow["item"] | null }>({
+  const [statusDialog, setStatusDialog] = useState<{ isOpen: boolean; item: MenuRow["item"] | null }>({
     isOpen: false,
     item: null,
   });
@@ -1801,7 +1805,8 @@ export function ReceptionistMenuPage() {
     const matchesSearch = !debouncedSearch || item.name.toLowerCase().includes(debouncedSearch.toLowerCase()) || category.name.toLowerCase().includes(debouncedSearch.toLowerCase());
     const matchesCategory = !selectedCategory || category.id === selectedCategory;
     const matchesAvailability = !selectedAvailability || (selectedAvailability === "available" ? item.isAvailable : !item.isAvailable);
-    return matchesSearch && matchesCategory && matchesAvailability;
+    const matchesStatus = !selectedStatus || (selectedStatus === "active" ? item.isActive : !item.isActive);
+    return matchesSearch && matchesCategory && matchesAvailability && matchesStatus;
   });
 
   function openAddModal() {
@@ -1811,9 +1816,11 @@ export function ReceptionistMenuPage() {
       categoryId: categories[0]?.id ?? "",
       description: "",
       price: "",
+      taxRate: "0",
       imageUrl: null,
       imagePublicId: null,
       isAvailable: true,
+      isActive: true,
     });
     setImagePreview(null);
     setIsItemModalOpen(true);
@@ -1826,9 +1833,11 @@ export function ReceptionistMenuPage() {
       categoryId,
       description: item.description ?? "",
       price: item.price,
+      taxRate: item.taxRate ?? "0",
       imageUrl: item.imageUrl ?? null,
       imagePublicId: item.imagePublicId ?? null,
       isAvailable: item.isAvailable,
+      isActive: item.isActive,
     });
     setImagePreview(item.imageUrl ?? null);
     setIsItemModalOpen(true);

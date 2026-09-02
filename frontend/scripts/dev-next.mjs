@@ -6,7 +6,12 @@ import { createRequire } from "node:module";
 const root = process.cwd();
 const lockFile = path.join(root, ".next-dev.lock");
 const nextDir = path.join(root, ".next");
-const shouldClean = process.argv.includes("--clean");
+const routesManifest = path.join(nextDir, "routes-manifest.json");
+const buildIdFile = path.join(nextDir, "BUILD_ID");
+
+// Clean stale build artifacts if switching from build mode to dev mode or if manifests are missing
+const isBuildArtifact = fs.existsSync(buildIdFile) || (fs.existsSync(nextDir) && !fs.existsSync(routesManifest));
+const shouldClean = process.argv.includes("--clean") || isBuildArtifact;
 
 function readLock() {
   if (!fs.existsSync(lockFile)) return null;
@@ -30,7 +35,11 @@ function isProcessRunning(pid) {
 
 function removeIfExists(target) {
   if (!fs.existsSync(target)) return;
-  fs.rmSync(target, { recursive: true, force: true, maxRetries: 5, retryDelay: 250 });
+  try {
+    fs.rmSync(target, { recursive: true, force: true, maxRetries: 5, retryDelay: 250 });
+  } catch {
+    // Ignore lock errors
+  }
 }
 
 const existingLock = readLock();

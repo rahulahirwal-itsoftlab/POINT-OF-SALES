@@ -5,12 +5,13 @@ import { beginLogout, finishLogout } from "@/lib/auth/session-state";
 import { getCurrentUser, login, logout } from "../api/auth-api";
 import type { LoginFormValues } from "../types/auth.types";
 
-export function useCurrentUser() {
+export function useCurrentUser(options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: ["auth", "me"],
     queryFn: getCurrentUser,
     retry: false,
     staleTime: 5 * 60 * 1000,
+    enabled: options?.enabled ?? true,
   });
 }
 

@@ -31,19 +31,20 @@ export function RestaurantBranding({
   nameClassName,
   fallbackName,
 }: RestaurantBrandingProps) {
-  const { data: userResponse } = useCurrentUser();
   const [imageError, setImageError] = useState(false);
 
-  const user = userResponse?.data?.user;
+  // Only call hook if propRestaurant is omitted
+  const isPropProvided = propRestaurant !== undefined;
+  const currentUserQuery = useCurrentUser({ enabled: !isPropProvided });
+  const user = currentUserQuery.data?.data?.user;
   const isSuperAdmin = user?.role === "SUPER_ADMIN";
 
-  const restaurant =
-    propRestaurant !== undefined
-      ? propRestaurant
-      : user?.restaurant ||
-        (user?.restaurantName || user?.restaurantLogo
-          ? { name: user.restaurantName, logo: user.restaurantLogo }
-          : null);
+  const restaurant = isPropProvided
+    ? propRestaurant
+    : user?.restaurant ||
+      (user?.restaurantName || user?.restaurantLogo
+        ? { name: user.restaurantName, logo: user.restaurantLogo }
+        : null);
 
   const name =
     restaurant?.name ||
@@ -52,6 +53,7 @@ export function RestaurantBranding({
 
   const rawLogo = restaurant?.logo;
   const logoUrl = rawLogo ? getImageUrl(rawLogo) : "";
+  const isExternalUrl = /^https?:\/\//i.test(logoUrl);
 
   const sizeClasses = {
     sm: {
@@ -98,7 +100,7 @@ export function RestaurantBranding({
               sizes="(max-width: 768px) 64px, 128px"
               className="object-cover"
               onError={() => setImageError(true)}
-              unoptimized={logoUrl.startsWith("data:") || logoUrl.startsWith("blob:")}
+              unoptimized={isExternalUrl || logoUrl.startsWith("data:") || logoUrl.startsWith("blob:")}
             />
           ) : (
             <div className="flex h-full w-full items-center justify-center font-bold uppercase text-[var(--muted)]">
