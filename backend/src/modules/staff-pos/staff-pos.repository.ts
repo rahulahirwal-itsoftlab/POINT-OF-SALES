@@ -6,7 +6,8 @@ import { buildDashboardDateRange, serializeDashboardDateRange, type DashboardDat
 import { createPublicId } from "../../common/utils/id-generator.js";
 import { deleteImageFromCloudinary, uploadImageToCloudinary } from "../../config/cloudinary.js";
 import { db } from "../../config/database.js";
-import { auditLogs, bills, customers, customerTableAssignments, employees, menuCategories, menuItems, notifications, orderItems, orders, payments, restaurants, restaurantTables } from "../../db/schema/index.js";
+import { auditLogs, bills, customers, customerTableAssignments, employees, inventoryItems, menuCategories, menuItems, notifications, orderItems, orders, payments, recipeIngredients, recipes, restaurants, restaurantTables } from "../../db/schema/index.js";
+import { InventoryRepository } from "../inventory/inventory.repository.js";
 import type { z } from "zod";
 import type { addOrderItemsSchema, assignTableSchema, createCategorySchema, createMenuItemSchema, createOrderSchema, createTableSchema, listOrdersSchema, orderStatusSchema, paymentSchema, updateMenuItemSchema, updateTableSchema } from "./staff-pos.validation.js";
 
@@ -47,6 +48,8 @@ function page(query: { page?: number; limit?: number }) {
 }
 
 export class StaffPosRepository {
+  private readonly inventoryRepository = new InventoryRepository();
+
   async roleDashboard(tenant: Tenant, query: DashboardRangeQuery) {
     const [restaurant] = await db.select({ timezone: restaurants.timezone }).from(restaurants).where(and(eq(restaurants.organizationId, tenant.organizationId), eq(restaurants.id, tenant.restaurantId))).limit(1);
     const dateRange = buildDashboardDateRange(query, restaurant?.timezone ?? "Asia/Kolkata");
@@ -654,7 +657,25 @@ export class StaffPosRepository {
       lineTotal: orderItems.lineTotal,
       notes: orderItems.notes,
       imageUrl: menuItems.imageUrl,
+      menuItemId: orderItems.menuItemId,
     }).from(orderItems).leftJoin(menuItems, eq(orderItems.menuItemId, menuItems.id)).where(and(eq(orderItems.orderId, orderId), eq(orderItems.restaurantId, tenant.restaurantId)));
+
+    const recipeRows = items.length ? await db.select({
+      menuItemId: recipes.menuItemId,
+      inventoryItemName: inventoryItems.name,
+      quantity: recipeIngredients.quantity,
+      unit: recipeIngredients.unit,
+    }).from(recipes)
+      .innerJoin(recipeIngredients, eq(recipeIngredients.recipeId, recipes.id))
+      .innerJoin(inventoryItems, eq(recipeIngredients.inventoryItemId, inventoryItems.id))
+      .where(and(eq(recipes.restaurantId, tenant.restaurantId), eq(recipes.organizationId, tenant.organizationId), eq(recipes.isActive, true), inArray(recipes.menuItemId, items.map((item) => item.menuItemId)))) : [];
+
+    const recipeByMenuItem = new Map<string, typeof recipeRows>();
+    for (const row of recipeRows) {
+      const current = recipeByMenuItem.get(row.menuItemId) ?? [];
+      current.push(row);
+      recipeByMenuItem.set(row.menuItemId, current);
+    }
 
     return {
       ...order,
@@ -662,47 +683,62 @@ export class StaffPosRepository {
       discountTotal: money(order.discountTotal),
       taxTotal: money(order.taxTotal),
       grandTotal: money(order.grandTotal),
-      items: items.map((item) => ({ ...item, unitPrice: money(item.unitPrice), taxAmount: money(item.taxAmount), lineTotal: money(item.lineTotal) })),
+      items: items.map((item) => ({
+        ...item,
+        unitPrice: money(item.unitPrice),
+        taxAmount: money(item.taxAmount),
+        lineTotal: money(item.lineTotal),
+        recipeRequirements: (recipeByMenuItem.get(item.menuItemId) ?? []).map((ingredient) => ({
+          inventoryItemName: ingredient.inventoryItemName,
+          quantity: money(ingredient.quantity) * item.quantity,
+          unit: ingredient.unit,
+        })),
+      })),
     };
   }
 
   async updateOrderStatus(tenant: Tenant, orderId: string, status: OrderStatus) {
-    const [order] = await db.select().from(orders).where(and(eq(orders.id, orderId), eq(orders.organizationId, tenant.organizationId), eq(orders.restaurantId, tenant.restaurantId))).limit(1);
-    if (!order) throw new AppError("Order not found", 404, "ORDER_NOT_FOUND");
-    if (!orderTransitions[order.status]?.includes(status)) throw new AppError(`Cannot change order from ${order.status} to ${status}`, 422, "ORDER_STATUS_INVALID");
-    const [updated] = await db.update(orders).set({ status, updatedAt: new Date() }).where(eq(orders.id, order.id)).returning();
-    await this.audit(tenant, `ORDER_${status}`, "ORDER", "order", order.id, order.orderNumber);
-    if (status === "READY") {
-      const context = await this.orderNotificationContext(db, tenant, order.id);
-      const tableLabel = context?.tableNumber ? `Table ${context.tableNumber}` : "the table";
-      if (order.waiterId) {
-        await db.insert(notifications).values({
-          scope: "USER",
+    return db.transaction(async (tx) => {
+      const [order] = await tx.select().from(orders).where(and(eq(orders.id, orderId), eq(orders.organizationId, tenant.organizationId), eq(orders.restaurantId, tenant.restaurantId))).limit(1);
+      if (!order) throw new AppError("Order not found", 404, "ORDER_NOT_FOUND");
+      if (!orderTransitions[order.status]?.includes(status)) throw new AppError(`Cannot change order from ${order.status} to ${status}`, 422, "ORDER_STATUS_INVALID");
+      if (status === "READY") {
+        await this.inventoryRepository.consumeOrderForReady(tx, tenant, order.id);
+      }
+      const [updated] = await tx.update(orders).set({ status, updatedAt: new Date() }).where(eq(orders.id, order.id)).returning();
+      await tx.insert(auditLogs).values(this.auditValues(tenant, `ORDER_${status}`, "ORDER", "order", order.id, order.orderNumber));
+      if (status === "READY") {
+        const context = await this.orderNotificationContext(tx, tenant, order.id);
+        const tableLabel = context?.tableNumber ? `Table ${context.tableNumber}` : "the table";
+        if (order.waiterId) {
+          await tx.insert(notifications).values({
+            scope: "USER",
+            organizationId: tenant.organizationId,
+            restaurantId: tenant.restaurantId,
+            recipientEmployeeId: order.waiterId,
+            type: "ORDER_READY",
+            title: "Order Ready",
+            message: `Order ${order.orderNumber} for ${tableLabel} is ready to serve.`,
+            entityType: "order",
+            entityId: order.id,
+            dedupeKey: `order:${order.id}:ready`,
+          }).onConflictDoNothing();
+        }
+        await tx.insert(notifications).values({
+          scope: "RESTAURANT",
           organizationId: tenant.organizationId,
           restaurantId: tenant.restaurantId,
-          recipientEmployeeId: order.waiterId,
-          type: "ORDER_READY",
-          title: "Order Ready",
-          message: `Order ${order.orderNumber} for ${tableLabel} is ready to serve.`,
+          recipientRole: "RECEPTION",
+          type: "ORDER_READY_RECEPTION",
+          title: "Order Ready for Service",
+          message: `Order ${order.orderNumber} for ${tableLabel} is marked READY by kitchen.`,
           entityType: "order",
           entityId: order.id,
-          dedupeKey: `order:${order.id}:ready`,
+          dedupeKey: `order:${order.id}:ready:reception`,
         }).onConflictDoNothing();
       }
-      await db.insert(notifications).values({
-        scope: "RESTAURANT",
-        organizationId: tenant.organizationId,
-        restaurantId: tenant.restaurantId,
-        recipientRole: "RECEPTION",
-        type: "ORDER_READY_RECEPTION",
-        title: "Order Ready for Service",
-        message: `Order ${order.orderNumber} for ${tableLabel} is marked READY by kitchen.`,
-        entityType: "order",
-        entityId: order.id,
-        dedupeKey: `order:${order.id}:ready:reception`,
-      }).onConflictDoNothing();
-    }
-    return updated;
+      return updated;
+    });
   }
 
   async sendToBilling(tenant: Tenant, orderId: string) {

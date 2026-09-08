@@ -18,6 +18,17 @@ export const navigationSections = [
       { label: "Dashboard", href: "/restaurant-admin/dashboard" },
       { label: "Staff", href: "/restaurant-admin/staff" },
       { label: "Menu", href: "/admin/menu" },
+      {
+        label: "Inventory & Recipes",
+        href: "/restaurant-admin/inventory",
+        items: [
+          { label: "Overview & Analytics", href: "/restaurant-admin/inventory" },
+          { label: "Inventory Categories", href: "/restaurant-admin/inventory/categories" },
+          { label: "Inventory Items / Stock", href: "/restaurant-admin/inventory/items" },
+          { label: "Stock Movements Audit", href: "/restaurant-admin/inventory/movements" },
+          { label: "Recipe Book & Costing", href: "/restaurant-admin/inventory/recipes" },
+        ],
+      },
       { label: "Bills", href: "/restaurant-admin/bills" },
       { label: "Subscription", href: "/restaurant-admin/subscription" },
       { label: "Notifications", href: "/restaurant-admin/notifications" },
@@ -52,6 +63,15 @@ export const navigationSections = [
     roles: ["KITCHEN"],
     items: [
       { label: "Kitchen Orders", href: "/kitchen/orders" },
+      {
+        label: "Inventory & Recipes",
+        href: "/kitchen/inventory",
+        items: [
+          { label: "Overview & Analytics", href: "/kitchen/inventory" },
+          { label: "Inventory Items / Stock", href: "/kitchen/inventory/items" },
+          { label: "Recipe Book & Costing", href: "/kitchen/inventory/recipes" },
+        ],
+      },
       { label: "Notifications", href: "/kitchen/notifications" },
     ],
   },

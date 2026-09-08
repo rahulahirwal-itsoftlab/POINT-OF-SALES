@@ -367,6 +367,114 @@ export const orderItems = pgTable("order_items", {
   orderIdx: index("order_items_order_idx").on(table.orderId),
 }));
 
+export const inventoryCategories = pgTable("inventory_categories", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  organizationId: uuid("organization_id").notNull().references(() => organizations.id),
+  restaurantId: uuid("restaurant_id").notNull().references(() => restaurants.id),
+  name: varchar("name", { length: 120 }).notNull(),
+  description: text("description"),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => ({
+  tenantIdx: index("inventory_categories_tenant_idx").on(table.organizationId, table.restaurantId),
+  restaurantNameUnique: uniqueIndex("inventory_categories_restaurant_name_unique").on(table.restaurantId, table.name),
+}));
+
+export const inventoryItems = pgTable("inventory_items", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  organizationId: uuid("organization_id").notNull().references(() => organizations.id),
+  restaurantId: uuid("restaurant_id").notNull().references(() => restaurants.id),
+  categoryId: uuid("category_id").notNull().references(() => inventoryCategories.id),
+  name: varchar("name", { length: 160 }).notNull(),
+  sku: varchar("sku", { length: 80 }),
+  unit: varchar("unit", { length: 24 }).notNull(),
+  currentQuantity: numeric("current_quantity", { precision: 14, scale: 4 }).notNull().default("0"),
+  minimumQuantity: numeric("minimum_quantity", { precision: 14, scale: 4 }).notNull().default("0"),
+  costPerUnit: numeric("cost_per_unit", { precision: 12, scale: 4 }),
+  description: text("description"),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => ({
+  tenantIdx: index("inventory_items_tenant_idx").on(table.organizationId, table.restaurantId),
+  categoryIdx: index("inventory_items_category_idx").on(table.categoryId),
+  restaurantNameUnique: uniqueIndex("inventory_items_restaurant_name_unique").on(table.restaurantId, table.name),
+  restaurantSkuUnique: uniqueIndex("inventory_items_restaurant_sku_unique").on(table.restaurantId, table.sku),
+}));
+
+export const stockMovements = pgTable("stock_movements", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  organizationId: uuid("organization_id").notNull().references(() => organizations.id),
+  restaurantId: uuid("restaurant_id").notNull().references(() => restaurants.id),
+  inventoryItemId: uuid("inventory_item_id").notNull().references(() => inventoryItems.id),
+  movementType: varchar("movement_type", { length: 40 }).notNull(),
+  quantity: numeric("quantity", { precision: 14, scale: 4 }).notNull(),
+  unit: varchar("unit", { length: 24 }).notNull(),
+  previousQuantity: numeric("previous_quantity", { precision: 14, scale: 4 }).notNull(),
+  newQuantity: numeric("new_quantity", { precision: 14, scale: 4 }).notNull(),
+  reason: text("reason"),
+  referenceType: varchar("reference_type", { length: 80 }),
+  referenceId: uuid("reference_id"),
+  orderId: uuid("order_id").references(() => orders.id),
+  orderItemId: uuid("order_item_id").references(() => orderItems.id),
+  performedByAdminId: uuid("performed_by_admin_id").references(() => admins.id),
+  performedByEmployeeId: uuid("performed_by_employee_id").references(() => employees.id),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => ({
+  tenantIdx: index("stock_movements_tenant_idx").on(table.organizationId, table.restaurantId),
+  itemIdx: index("stock_movements_item_idx").on(table.inventoryItemId),
+  referenceIdx: index("stock_movements_reference_idx").on(table.referenceType, table.referenceId),
+  orderItemConsumptionUnique: uniqueIndex("stock_movements_order_item_consumption_unique").on(table.orderItemId, table.inventoryItemId, table.movementType),
+}));
+
+export const recipes = pgTable("recipes", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  organizationId: uuid("organization_id").notNull().references(() => organizations.id),
+  restaurantId: uuid("restaurant_id").notNull().references(() => restaurants.id),
+  menuItemId: uuid("menu_item_id").notNull().references(() => menuItems.id),
+  servingQuantity: numeric("serving_quantity", { precision: 12, scale: 4 }).notNull().default("1"),
+  servingUnit: varchar("serving_unit", { length: 40 }).notNull().default("plate"),
+  isActive: boolean("is_active").notNull().default(true),
+  createdByAdminId: uuid("created_by_admin_id").references(() => admins.id),
+  updatedByAdminId: uuid("updated_by_admin_id").references(() => admins.id),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => ({
+  tenantIdx: index("recipes_tenant_idx").on(table.organizationId, table.restaurantId),
+  menuItemIdx: index("recipes_menu_item_idx").on(table.menuItemId),
+  activeMenuItemUnique: uniqueIndex("recipes_active_menu_item_unique").on(table.restaurantId, table.menuItemId, table.isActive),
+}));
+
+export const recipeIngredients = pgTable("recipe_ingredients", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  organizationId: uuid("organization_id").notNull().references(() => organizations.id),
+  restaurantId: uuid("restaurant_id").notNull().references(() => restaurants.id),
+  recipeId: uuid("recipe_id").notNull().references(() => recipes.id),
+  inventoryItemId: uuid("inventory_item_id").notNull().references(() => inventoryItems.id),
+  quantity: numeric("quantity", { precision: 14, scale: 4 }).notNull(),
+  unit: varchar("unit", { length: 24 }).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => ({
+  recipeIdx: index("recipe_ingredients_recipe_idx").on(table.recipeId),
+  inventoryItemIdx: index("recipe_ingredients_inventory_item_idx").on(table.inventoryItemId),
+  recipeItemUnique: uniqueIndex("recipe_ingredients_recipe_item_unique").on(table.recipeId, table.inventoryItemId),
+}));
+
+export const orderItemInventoryConsumptions = pgTable("order_item_inventory_consumptions", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  organizationId: uuid("organization_id").notNull().references(() => organizations.id),
+  restaurantId: uuid("restaurant_id").notNull().references(() => restaurants.id),
+  orderId: uuid("order_id").notNull().references(() => orders.id),
+  orderItemId: uuid("order_item_id").notNull().references(() => orderItems.id),
+  recipeId: uuid("recipe_id").references(() => recipes.id),
+  processedAt: timestamp("processed_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => ({
+  tenantIdx: index("order_item_inventory_consumptions_tenant_idx").on(table.organizationId, table.restaurantId),
+  orderItemUnique: uniqueIndex("order_item_inventory_consumptions_order_item_unique").on(table.orderItemId),
+}));
+
 export const bills = pgTable("bills", {
   id: uuid("id").primaryKey().defaultRandom(),
   organizationId: uuid("organization_id").notNull().references(() => organizations.id),

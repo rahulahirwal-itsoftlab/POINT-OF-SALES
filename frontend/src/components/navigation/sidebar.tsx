@@ -4,10 +4,15 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   Bell,
+  BookOpen,
   ChefHat,
+  ChevronDown,
   ClipboardList,
   Gauge,
+  History,
+  Layers,
   LayoutDashboard,
+  PackageSearch,
   ReceiptText,
   Settings,
   ShieldCheck,
@@ -37,6 +42,12 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   Tables: Table2,
   Customers: Users,
   "Kitchen Orders": ClipboardList,
+  "Inventory & Recipes": PackageSearch,
+  "Overview & Analytics": Gauge,
+  "Inventory Categories": Layers,
+  "Inventory Items / Stock": PackageSearch,
+  "Stock Movements Audit": History,
+  "Recipe Book & Costing": BookOpen,
 };
 
 const roleLabels: Record<string, string> = {
@@ -97,8 +108,57 @@ export function Sidebar({ role, isOpen = false, onClose }: { role?: string; isOp
             </p>
             <div className="space-y-1">
               {section.items.map((item) => {
-                const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
+                const childItems = "items" in item ? item.items : undefined;
+                const active = pathname === item.href || pathname.startsWith(`${item.href}/`) || Boolean(childItems?.some((child) => pathname === child.href || pathname.startsWith(`${child.href}/`)));
                 const Icon = iconMap[item.label] ?? LayoutDashboard;
+                if (childItems?.length) {
+                  return (
+                    <details key={item.href} open={active} className="group/details">
+                      <summary
+                        className={cn(
+                          "group relative flex cursor-pointer list-none items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold transition duration-200 [&::-webkit-details-marker]:hidden",
+                          active ? "shadow-sm" : "hover:translate-x-0.5",
+                        )}
+                        style={{
+                          background: active ? "var(--primary)" : "transparent",
+                          color: active ? "#fffaf0" : "var(--text)",
+                        }}
+                      >
+                        <span
+                          className="flex h-8 w-8 items-center justify-center rounded-md transition"
+                          style={{
+                            background: active ? "rgb(255 250 240 / 0.14)" : "color-mix(in srgb, var(--surface-strong) 55%, transparent)",
+                          }}
+                        >
+                          <Icon className="h-4 w-4" />
+                        </span>
+                        <span className="min-w-0 flex-1">{item.label}</span>
+                        <ChevronDown className="h-4 w-4 transition group-open/details:rotate-180" />
+                      </summary>
+                      <div className="mt-1 space-y-1 pl-11">
+                        {childItems.map((child) => {
+                          const childActive = pathname === child.href || pathname.startsWith(`${child.href}/`);
+                          const ChildIcon = iconMap[child.label] ?? LayoutDashboard;
+                          return (
+                            <Link
+                              key={child.href}
+                              href={child.href}
+                              onClick={onClose}
+                              className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold transition hover:bg-slate-100"
+                              style={{
+                                background: childActive ? "color-mix(in srgb, var(--primary) 12%, transparent)" : "transparent",
+                                color: childActive ? "var(--primary)" : "var(--text)",
+                              }}
+                            >
+                              <ChildIcon className="h-3.5 w-3.5" />
+                              <span>{child.label}</span>
+                            </Link>
+                          );
+                        })}
+                      </div>
+                    </details>
+                  );
+                }
                 return (
                   <Link
                     key={item.href}

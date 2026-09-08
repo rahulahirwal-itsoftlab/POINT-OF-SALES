@@ -129,12 +129,19 @@ export const errorHandler: ErrorHandler = (error, c) => {
 
   // --- Database / Network Connection Errors ---
   const errStr = error instanceof Error ? error.message : String(error);
+  const errCode = typeof error === "object" && error && "code" in error ? String((error as { code?: unknown }).code ?? "") : "";
   if (
+    errCode === "EACCES" ||
+    errCode === "ECONNREFUSED" ||
+    errCode === "ENOTFOUND" ||
+    errCode === "ETIMEDOUT" ||
     errStr.includes("ENOTFOUND") ||
     errStr.includes("ECONNREFUSED") ||
     errStr.includes("ETIMEDOUT") ||
     errStr.includes("getaddrinfo") ||
-    errStr.includes("Connection terminated unexpected")
+    errStr.includes("Connection terminated unexpected") ||
+    errStr.toLowerCase().includes("connection timeout") ||
+    errStr.toLowerCase().includes("connection terminated due to connection timeout")
   ) {
     logger.error(
       { requestId, method, path, statusCode: 503, errorCode: "DATABASE_CONNECTION_ERROR", errorMessage: errStr },

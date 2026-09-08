@@ -1617,6 +1617,21 @@ export function KitchenOrderDetailPage({ orderId }: { orderId: string }) {
                 <span>x {item.quantity}</span>
               </div>
               {item.notes ? <p className="mt-1 text-xs text-slate-500">Note: {item.notes}</p> : null}
+              {item.recipeRequirements?.length ? (
+                <div className="mt-2 rounded-lg bg-slate-50 p-3">
+                  <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500">Required Ingredients</p>
+                  <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                    {item.recipeRequirements.map((ingredient) => (
+                      <div key={`${item.id}-${ingredient.inventoryItemName}`} className="flex justify-between rounded-md bg-white px-2.5 py-1.5 text-xs">
+                        <span className="font-medium text-slate-700">{ingredient.inventoryItemName}</span>
+                        <span className="text-slate-500">{ingredient.quantity} {ingredient.unit}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <p className="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">No active recipe is configured for this item.</p>
+              )}
             </div>
           ))}
         </div>

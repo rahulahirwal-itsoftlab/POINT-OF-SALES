@@ -17,6 +17,7 @@ import { paymentRoutes } from "../modules/payments/index.js";
 import { auditLogRoutes } from "../modules/audit-logs/index.js";
 import { notificationRoutes } from "../modules/notifications/index.js";
 import { dashboardRoutes } from "../modules/dashboard/index.js";
+import { inventoryRoutes } from "../modules/inventory/index.js";
 import { restaurantAdminRoutes } from "../modules/restaurant-admin/index.js";
 import { staffPosRoutes } from "../modules/staff-pos/index.js";
 import { superAdminRoutes } from "../modules/super-admin/index.js";
@@ -46,6 +47,7 @@ export function registerRoutes(app: Hono) {
   restaurantApp.route(`/audit-logs`, auditLogRoutes);
   restaurantApp.route(`/notifications`, notificationRoutes);
   restaurantApp.route(`/dashboard`, dashboardRoutes);
+  restaurantApp.route(`/inventory`, inventoryRoutes);
   restaurantApp.route(`/restaurant-admin`, restaurantAdminRoutes);
   restaurantApp.route(`/staff-pos`, staffPosRoutes);
 

@@ -100,7 +100,7 @@ export type OrderDetail = OrderRow & {
   customerPhone?: string | null;
   billNumber?: string | null;
   paymentStatus?: string | null;
-  items: Array<{ id: string; itemName: string; unitPrice: number; quantity: number; taxAmount: number; lineTotal: number; notes?: string | null; imageUrl?: string | null }>;
+  items: Array<{ id: string; itemName: string; menuItemId?: string; unitPrice: number; quantity: number; taxAmount: number; lineTotal: number; notes?: string | null; imageUrl?: string | null; recipeRequirements?: Array<{ inventoryItemName: string; quantity: number; unit: string }> }>;
 };
 
 export type CategoryRow = {
