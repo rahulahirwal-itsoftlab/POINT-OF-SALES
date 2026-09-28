@@ -21,12 +21,14 @@ import { inventoryRoutes } from "../modules/inventory/index.js";
 import { restaurantAdminRoutes } from "../modules/restaurant-admin/index.js";
 import { staffPosRoutes } from "../modules/staff-pos/index.js";
 import { superAdminRoutes } from "../modules/super-admin/index.js";
+import { franchiseAdminRoutes } from "../modules/franchise-admin/index.js";
 
 export function registerRoutes(app: Hono) {
   const api = appConfig.apiPrefix;
 
   app.route(`${api}/auth`, authRoutes);
   app.route(`${api}/super-admin`, superAdminRoutes);
+  app.route(`${api}/franchise-admin`, franchiseAdminRoutes);
 
   // Restaurant Level Middlewares
   const restaurantApp = new Hono();

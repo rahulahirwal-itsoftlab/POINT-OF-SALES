@@ -47,7 +47,7 @@ export class AuthService {
       throw Errors.invalidCredentials();
     }
 
-    if (principal.subjectType !== "SUPER_ADMIN") {
+    if (principal.subjectType !== "SUPER_ADMIN" && principal.subjectType !== "FRANCHISE_STEWARD") {
       await this.assertRestaurantAndLicenseAccess(principal.restaurantId);
     }
 
@@ -78,7 +78,7 @@ export class AuthService {
       throw Errors.userInactive();
     }
 
-    if (principal.subjectType !== "SUPER_ADMIN") {
+    if (principal.subjectType !== "SUPER_ADMIN" && principal.subjectType !== "FRANCHISE_STEWARD") {
       await this.assertRestaurantAndLicenseAccess(principal.restaurantId);
     }
 
@@ -122,7 +122,10 @@ export class AuthService {
   async currentUser(principalId: string, subjectType: AuthSubjectType) {
     let principal: Principal | null = null;
     
-    if (subjectType === "SUPER_ADMIN") {
+    if (subjectType === "FRANCHISE_STEWARD") {
+      const franchiseAdmin = await this.repository.findFranchiseAdminById(principalId);
+      if (franchiseAdmin) principal = { ...franchiseAdmin, subjectType: "FRANCHISE_STEWARD" };
+    } else if (subjectType === "SUPER_ADMIN") {
       const superAdmin = await this.repository.findSuperAdminById(principalId);
       if (superAdmin) principal = { ...superAdmin, subjectType: "SUPER_ADMIN" };
     } else if (subjectType === "ADMIN") {
@@ -137,7 +140,7 @@ export class AuthService {
       throw Errors.userInactive();
     }
 
-    if (principal.subjectType !== "SUPER_ADMIN") {
+    if (principal.subjectType !== "SUPER_ADMIN" && principal.subjectType !== "FRANCHISE_STEWARD") {
       await this.assertRestaurantAndLicenseAccess(principal.restaurantId);
     }
     
@@ -208,6 +211,7 @@ export class AuthService {
 
     await this.repository.createSession({
       subjectType: principal.subjectType,
+      franchiseAdminId: principal.subjectType === "FRANCHISE_STEWARD" ? principal.id : null,
       superAdminId: principal.subjectType === "SUPER_ADMIN" ? principal.id : null,
       adminId: principal.subjectType === "ADMIN" ? principal.id : null,
       employeeId: principal.subjectType === "EMPLOYEE" ? principal.id : null,
@@ -221,11 +225,16 @@ export class AuthService {
   }
 
   private async findPrincipalForLogin(email: string): Promise<PrincipalWithPassword | null> {
-    const [superAdmin, admin, employee] = await Promise.all([
+    const [franchiseAdmin, superAdmin, admin, employee] = await Promise.all([
+      this.repository.findFranchiseAdminByEmail(email),
       this.repository.findSuperAdminByEmail(email),
       this.repository.findAdminByEmail(email),
       this.repository.findEmployeeByEmail(email),
     ]);
+
+    if (franchiseAdmin) {
+      return { ...franchiseAdmin, subjectType: "FRANCHISE_STEWARD" };
+    }
 
     if (superAdmin?.role === "SUPER_ADMIN") {
       return { ...superAdmin, subjectType: "SUPER_ADMIN" };
@@ -239,10 +248,16 @@ export class AuthService {
 
   private async findPrincipalForSession(session: {
     subjectType: AuthSubjectType;
+    franchiseAdminId?: string | null;
     superAdminId: string | null;
     adminId: string | null;
     employeeId: string | null;
   }): Promise<Principal | null> {
+    if (session.subjectType === "FRANCHISE_STEWARD" && session.franchiseAdminId) {
+      const franchiseAdmin = await this.repository.findFranchiseAdminById(session.franchiseAdminId);
+      return franchiseAdmin ? { ...franchiseAdmin, subjectType: "FRANCHISE_STEWARD" } : null;
+    }
+
     if (session.subjectType === "SUPER_ADMIN" && session.superAdminId) {
       const superAdmin = await this.repository.findSuperAdminById(session.superAdminId);
       return superAdmin ? { ...superAdmin, subjectType: "SUPER_ADMIN" } : null;
@@ -316,6 +331,10 @@ export class AuthService {
   }
 
   private async touchLastLogin(principal: PrincipalWithPassword) {
+    if (principal.subjectType === "FRANCHISE_STEWARD") {
+      await this.repository.touchFranchiseAdminLastLogin(principal.id);
+      return;
+    }
     if (principal.subjectType === "SUPER_ADMIN") {
       await this.repository.touchSuperAdminLastLogin(principal.id);
       return;

@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import {
   Bell,
   BookOpen,
+  Building2,
   ChefHat,
   ChevronDown,
   ClipboardList,
@@ -48,9 +49,13 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   "Inventory Items / Stock": PackageSearch,
   "Stock Movements Audit": History,
   "Recipe Book & Costing": BookOpen,
+  "Super Admins": Users,
+  Organizations: Building2,
+  "License & Subscription": ShieldCheck,
 };
 
 const roleLabels: Record<string, string> = {
+  FRANCHISE_STEWARD: "Franchise Steward",
   SUPER_ADMIN: "Platform Steward",
   RESTAURANT_ADMIN: "Restaurant Admin",
   RECEPTION: "Receptionist",
@@ -67,7 +72,7 @@ export function Sidebar({ role, isOpen = false, onClose }: { role?: string; isOp
     }))
     .filter((section) => section.items.length > 0);
 
-  const isSuperAdmin = role === "SUPER_ADMIN";
+  const isSuperAdmin = role === "SUPER_ADMIN" || role === "FRANCHISE_STEWARD";
 
   const content = (
     <div className="flex h-full flex-col">

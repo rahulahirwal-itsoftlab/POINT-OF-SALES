@@ -4,6 +4,7 @@ export interface LogContext {
   requestId?: string;
   principalId?: string;
   role?: string;
+  franchiseId?: string;
   organizationId?: string;
   restaurantId?: string;
   module?: string;

@@ -1,39 +1,68 @@
 import { db } from "../../config/database.js";
-import { env } from "../../config/env.js";
 import { logger } from "../../common/logger/logger.js";
 import { hashPassword } from "../../common/auth/password.js";
 import { createPublicId } from "../../common/utils/id-generator.js";
-import { plans, superAdmins } from "../schema/index.js";
+import { franchiseAdmins, franchises, plans } from "../schema/index.js";
+import { eq } from "drizzle-orm";
 
-async function seedSuperAdmin() {
-  if (!env.SUPER_ADMIN_EMAIL || !env.SUPER_ADMIN_PASSWORD) {
-    throw new Error("SUPER_ADMIN_EMAIL and SUPER_ADMIN_PASSWORD are required for seeding.");
-  }
-  const superAdminEmail = env.SUPER_ADMIN_EMAIL.trim().toLowerCase();
-  const superAdminPassword = env.SUPER_ADMIN_PASSWORD;
+async function seedFranchiseAdmin() {
+  const franchiseAdminEmail = "admin.pos@gmail.com";
+  const franchiseAdminPassword = "Admin@1234";
 
   await db.transaction(async (tx) => {
-    const passwordHash = await hashPassword(superAdminPassword);
+    // 1. Ensure primary franchise exists
+    let [franchise] = await tx
+      .select()
+      .from(franchises)
+      .where(eq(franchises.code, "FRAN-001"))
+      .limit(1);
+
+    if (!franchise) {
+      const oneYearFromNow = new Date();
+      oneYearFromNow.setFullYear(oneYearFromNow.getFullYear() + 1);
+
+      [franchise] = await tx
+        .insert(franchises)
+        .values({
+          publicId: createPublicId("FRA"),
+          code: "FRAN-001",
+          name: "Primary POS Franchise",
+          email: "franchise@pos.com",
+          phone: "+919876543210",
+          maxSuperAdmins: 10,
+          status: "ACTIVE",
+          licenseKey: `LIC-FRAN-${Date.now().toString(36).toUpperCase()}`,
+          licenseStatus: "ACTIVE",
+          licenseExpiresAt: oneYearFromNow,
+        })
+        .returning();
+    }
+
+    // 2. Seed initial Franchise Admin (admin.pos@gmail.com)
+    const passwordHash = await hashPassword(franchiseAdminPassword);
 
     await tx
-      .insert(superAdmins)
+      .insert(franchiseAdmins)
       .values({
-        publicId: createPublicId("SAD"),
-        name: env.SUPER_ADMIN_NAME || "Super Admin",
-        email: superAdminEmail,
+        publicId: createPublicId("FAD"),
+        franchiseId: franchise.id,
+        name: "Franchise Steward",
+        email: franchiseAdminEmail,
         passwordHash,
+        role: "FRANCHISE_STEWARD",
         status: "ACTIVE",
       })
       .onConflictDoUpdate({
-        target: superAdmins.email,
+        target: franchiseAdmins.email,
         set: {
-          name: env.SUPER_ADMIN_NAME || "Super Admin",
+          name: "Franchise Steward",
           passwordHash,
           status: "ACTIVE",
           updatedAt: new Date(),
         },
       });
 
+    // 3. Seed default subscription plans
     const defaultPlans = [
       {
         code: "MONTHLY_STARTER",
@@ -81,12 +110,12 @@ async function seedSuperAdmin() {
   });
 }
 
-seedSuperAdmin()
+seedFranchiseAdmin()
   .then(() => {
-    logger.info({ email: env.SUPER_ADMIN_EMAIL }, "Super Admin seed completed");
+    logger.info({ email: "admin.pos@gmail.com" }, "Franchise Steward seed completed successfully.");
     process.exit(0);
   })
   .catch((error) => {
-    logger.error({ error }, "Super Admin seed failed");
+    logger.error({ error }, "Franchise Steward seed failed");
     process.exit(1);
   });

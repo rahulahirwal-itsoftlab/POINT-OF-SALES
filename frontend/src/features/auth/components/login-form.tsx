@@ -11,6 +11,7 @@ import { useCurrentUser, useLogin } from "../hooks/use-auth";
 import { extractApiError } from "@/lib/api/client";
 
 function defaultRouteForRole(role?: string) {
+  if (role === "FRANCHISE_STEWARD") return "/franchise-steward/dashboard";
   if (role === "SUPER_ADMIN") return "/super-admin/dashboard";
   if (role === "RESTAURANT_ADMIN") return "/restaurant-admin/dashboard";
   if (role === "WAITER") return "/waiter/dashboard";
@@ -32,6 +33,7 @@ function resolveRedirectPath(nextPath: string | null, role?: string) {
   if (!nextPath || nextPath === "/dashboard") {
     return defaultRoute;
   }
+  if (role === "FRANCHISE_STEWARD" && (nextPath.startsWith("/franchise-steward") || nextPath.startsWith("/dashboard"))) return nextPath;
   if (role === "SUPER_ADMIN" && (nextPath.startsWith("/super-admin") || nextPath.startsWith("/dashboard"))) return nextPath;
   if (role === "RESTAURANT_ADMIN" && (nextPath.startsWith("/restaurant-admin") || nextPath.startsWith("/admin") || nextPath.startsWith("/dashboard"))) return nextPath;
   if (role === "WAITER" && (nextPath.startsWith("/waiter") || nextPath.startsWith("/dashboard"))) return nextPath;

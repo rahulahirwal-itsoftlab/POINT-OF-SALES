@@ -1,5 +1,16 @@
 export const navigationSections = [
   {
+    label: "Franchise Steward",
+    roles: ["FRANCHISE_STEWARD"],
+    items: [
+      { label: "Dashboard", href: "/franchise-steward/dashboard" },
+      { label: "Super Admins", href: "/franchise-steward/super-admins" },
+      { label: "License & Subscription", href: "/franchise-steward/license" },
+      { label: "Notifications", href: "/franchise-steward/notifications" },
+      { label: "Audit Logs", href: "/franchise-steward/audit-logs" },
+    ],
+  },
+  {
     label: "Platform",
     roles: ["SUPER_ADMIN"],
     items: [

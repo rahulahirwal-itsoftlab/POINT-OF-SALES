@@ -3,6 +3,7 @@ import { db } from "../../config/database.js";
 import {
   authSessions,
   auditLogs,
+  franchiseAdmins,
   superAdmins,
   admins,
   employees,
@@ -53,6 +54,26 @@ export class AuthRepository {
       })
       .from(organizations)
       .where(eq(organizations.id, organizationId));
+
+    return row;
+  }
+
+  async findFranchiseAdminByEmail(email: string) {
+    const [row] = await db
+      .select({
+        id: franchiseAdmins.id,
+        publicId: franchiseAdmins.publicId,
+        franchiseId: franchiseAdmins.franchiseId,
+        name: franchiseAdmins.name,
+        email: franchiseAdmins.email,
+        phone: franchiseAdmins.phone,
+        passwordHash: franchiseAdmins.passwordHash,
+        status: franchiseAdmins.status,
+        role: sql<"FRANCHISE_STEWARD">`'FRANCHISE_STEWARD'`,
+        lastLoginAt: franchiseAdmins.lastLoginAt,
+      })
+      .from(franchiseAdmins)
+      .where(eq(franchiseAdmins.email, email));
 
     return row;
   }
@@ -118,6 +139,25 @@ export class AuthRepository {
     return row;
   }
 
+  async findFranchiseAdminById(franchiseAdminId: string) {
+    const [row] = await db
+      .select({
+        id: franchiseAdmins.id,
+        publicId: franchiseAdmins.publicId,
+        franchiseId: franchiseAdmins.franchiseId,
+        name: franchiseAdmins.name,
+        email: franchiseAdmins.email,
+        phone: franchiseAdmins.phone,
+        status: franchiseAdmins.status,
+        role: sql<"FRANCHISE_STEWARD">`'FRANCHISE_STEWARD'`,
+        lastLoginAt: franchiseAdmins.lastLoginAt,
+      })
+      .from(franchiseAdmins)
+      .where(eq(franchiseAdmins.id, franchiseAdminId));
+
+    return row;
+  }
+
   async findSuperAdminById(superAdminId: string) {
     const [row] = await db
       .select({
@@ -177,7 +217,8 @@ export class AuthRepository {
   }
 
   async createSession(input: {
-    subjectType: "SUPER_ADMIN" | "ADMIN" | "EMPLOYEE";
+    subjectType: "FRANCHISE_STEWARD" | "SUPER_ADMIN" | "ADMIN" | "EMPLOYEE";
+    franchiseAdminId?: string | null;
     superAdminId?: string | null;
     adminId?: string | null;
     employeeId?: string | null;
@@ -195,6 +236,7 @@ export class AuthRepository {
       .select({
         id: authSessions.id,
         subjectType: authSessions.subjectType,
+        franchiseAdminId: authSessions.franchiseAdminId,
         superAdminId: authSessions.superAdminId,
         adminId: authSessions.adminId,
         employeeId: authSessions.employeeId,
@@ -239,6 +281,10 @@ export class AuthRepository {
       .update(authSessions)
       .set({ revokedAt: new Date() })
       .where(and(eq(authSessions.superAdminId, superAdminId), isNull(authSessions.revokedAt)));
+  }
+
+  async touchFranchiseAdminLastLogin(franchiseAdminId: string) {
+    await db.update(franchiseAdmins).set({ lastLoginAt: new Date() }).where(eq(franchiseAdmins.id, franchiseAdminId));
   }
 
   async touchSuperAdminLastLogin(superAdminId: string) {

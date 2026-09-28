@@ -6,8 +6,9 @@ const jwtSecretKey = new TextEncoder().encode(env.JWT_SECRET);
 
 export type TokenPayload = {
   sub: string;
-  type: "SUPER_ADMIN" | "ADMIN" | "EMPLOYEE";
+  type: "FRANCHISE_STEWARD" | "SUPER_ADMIN" | "ADMIN" | "EMPLOYEE";
   role: string;
+  franchiseId?: string;
   organizationId?: string;
   restaurantId?: string;
 };
@@ -20,6 +21,7 @@ export class TokenService {
     return new SignJWT({
       type: payload.type,
       role: payload.role,
+      franchiseId: payload.franchiseId,
       organizationId: payload.organizationId,
       restaurantId: payload.restaurantId,
     })
@@ -38,8 +40,9 @@ export class TokenService {
     const { payload } = await jwtVerify(token, jwtSecretKey);
     return {
       sub: payload.sub as string,
-      type: payload.type as "SUPER_ADMIN" | "ADMIN" | "EMPLOYEE",
+      type: payload.type as "FRANCHISE_STEWARD" | "SUPER_ADMIN" | "ADMIN" | "EMPLOYEE",
       role: payload.role as string,
+      franchiseId: payload.franchiseId as string | undefined,
       organizationId: payload.organizationId as string | undefined,
       restaurantId: payload.restaurantId as string | undefined,
     };

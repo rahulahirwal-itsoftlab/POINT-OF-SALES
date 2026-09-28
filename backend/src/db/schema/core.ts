@@ -89,11 +89,59 @@ export const restaurants = pgTable(
   }),
 );
 
+export const franchises = pgTable(
+  "franchises",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    publicId: varchar("public_id", { length: 32 }).notNull().unique(),
+    code: varchar("code", { length: 64 }).notNull().unique(),
+    name: varchar("name", { length: 160 }).notNull(),
+    email: varchar("email", { length: 160 }),
+    phone: varchar("phone", { length: 32 }),
+    maxSuperAdmins: integer("max_super_admins").notNull().default(10),
+    status: organizationStatusEnum("status").notNull().default("ACTIVE"),
+    licenseKey: varchar("license_key", { length: 64 }).notNull().unique(),
+    licenseStatus: licenseStatusEnum("license_status").notNull().default("ACTIVE"),
+    licenseExpiresAt: timestamp("license_expires_at", { withTimezone: true }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    codeIdx: index("franchises_code_idx").on(table.code),
+    statusIdx: index("franchises_status_idx").on(table.status),
+    licenseStatusIdx: index("franchises_license_status_idx").on(table.licenseStatus),
+  }),
+);
+
+export const franchiseAdmins = pgTable(
+  "franchise_admins",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    publicId: varchar("public_id", { length: 32 }).notNull().unique(),
+    franchiseId: uuid("franchise_id").notNull().references(() => franchises.id),
+    name: varchar("name", { length: 160 }).notNull(),
+    email: varchar("email", { length: 160 }).notNull().unique(),
+    phone: varchar("phone", { length: 32 }),
+    passwordHash: text("password_hash").notNull(),
+    role: userRoleEnum("role").notNull().default("FRANCHISE_STEWARD"),
+    status: userStatusEnum("status").notNull().default("ACTIVE"),
+    lastLoginAt: timestamp("last_login_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    franchiseIdx: index("franchise_admins_franchise_idx").on(table.franchiseId),
+    emailIdx: index("franchise_admins_email_idx").on(table.email),
+    statusIdx: index("franchise_admins_status_idx").on(table.status),
+  }),
+);
+
 export const superAdmins = pgTable(
   "super_admins",
   {
     id: uuid("id").primaryKey().defaultRandom(),
     publicId: varchar("public_id", { length: 32 }).notNull().unique(),
+    franchiseId: uuid("franchise_id").references(() => franchises.id),
     name: varchar("name", { length: 160 }).notNull(),
     email: varchar("email", { length: 160 }).notNull().unique(),
     phone: varchar("phone", { length: 32 }),
@@ -105,6 +153,7 @@ export const superAdmins = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => ({
+    franchiseIdx: index("super_admins_franchise_idx").on(table.franchiseId),
     emailIdx: index("super_admins_email_idx").on(table.email),
     statusIdx: index("super_admins_status_idx").on(table.status),
   }),
@@ -590,6 +639,7 @@ export const authSessions = pgTable(
   {
     id: uuid("id").primaryKey().defaultRandom(),
     subjectType: authSubjectTypeEnum("subject_type").notNull().default("SUPER_ADMIN"),
+    franchiseAdminId: uuid("franchise_admin_id").references(() => franchiseAdmins.id),
     superAdminId: uuid("super_admin_id").references(() => superAdmins.id),
     adminId: uuid("admin_id").references(() => admins.id),
     employeeId: uuid("employee_id").references(() => employees.id),
@@ -602,6 +652,7 @@ export const authSessions = pgTable(
     userAgent: text("user_agent"),
   },
   (table) => ({
+    franchiseAdminIdx: index("auth_sessions_franchise_admin_idx").on(table.franchiseAdminId),
     superAdminIdx: index("auth_sessions_super_admin_idx").on(table.superAdminId),
     adminIdx: index("auth_sessions_admin_idx").on(table.adminId),
     employeeIdx: index("auth_sessions_employee_idx").on(table.employeeId),

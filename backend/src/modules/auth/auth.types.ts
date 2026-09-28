@@ -8,4 +8,4 @@ export type RequestMetadata = {
   userAgent?: string | null;
 };
 
-export type AuthSubjectType = "SUPER_ADMIN" | "ADMIN" | "EMPLOYEE";
+export type AuthSubjectType = "FRANCHISE_STEWARD" | "SUPER_ADMIN" | "ADMIN" | "EMPLOYEE";

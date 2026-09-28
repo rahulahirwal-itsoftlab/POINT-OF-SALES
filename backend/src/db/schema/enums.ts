@@ -1,6 +1,7 @@
 import { pgEnum } from "drizzle-orm/pg-core";
 
 export const userRoleEnum = pgEnum("user_role", [
+  "FRANCHISE_STEWARD",
   "SUPER_ADMIN",
   "ADMIN",
   "RESTAURANT_ADMIN",
@@ -16,6 +17,7 @@ export const employeeRoleEnum = pgEnum("employee_role", [
 ]);
 
 export const authSubjectTypeEnum = pgEnum("auth_subject_type", [
+  "FRANCHISE_STEWARD",
   "SUPER_ADMIN",
   "ADMIN",
   "EMPLOYEE",

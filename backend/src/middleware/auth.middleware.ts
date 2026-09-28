@@ -16,11 +16,13 @@ export const requireAuth: MiddlewareHandler = async (c, next) => {
     try {
       const payload = await tokenService.verifyAccessToken(accessToken);
       const principal =
-        payload.type === "SUPER_ADMIN"
-          ? await authRepository.findSuperAdminById(payload.sub)
-          : payload.type === "ADMIN"
-            ? await authRepository.findAdminById(payload.sub)
-            : await authRepository.findEmployeeById(payload.sub);
+      payload.type === "FRANCHISE_STEWARD"
+          ? await authRepository.findFranchiseAdminById(payload.sub)
+          : payload.type === "SUPER_ADMIN"
+            ? await authRepository.findSuperAdminById(payload.sub)
+            : payload.type === "ADMIN"
+              ? await authRepository.findAdminById(payload.sub)
+              : await authRepository.findEmployeeById(payload.sub);
 
       if (!principal || principal.status !== "ACTIVE") {
         throw Errors.userInactive();
@@ -29,6 +31,7 @@ export const requireAuth: MiddlewareHandler = async (c, next) => {
       const restaurantId = "restaurantId" in principal ? principal.restaurantId ?? undefined : undefined;
       const restaurantIds = restaurantId ? [restaurantId] : [];
       const organizationId = "organizationId" in principal ? principal.organizationId ?? undefined : undefined;
+      const franchiseId = "franchiseId" in principal ? principal.franchiseId ?? undefined : undefined;
       if (organizationId) {
         const organization = await authRepository.findOrganizationById(organizationId);
         if (!organization || organization.status !== "ACTIVE") {
@@ -47,6 +50,7 @@ export const requireAuth: MiddlewareHandler = async (c, next) => {
         status: principal.status,
         isActive: principal.status === "ACTIVE",
         permissions: [] as string[],
+        franchiseId,
         organizationId,
         organizationIds: organizationId ? [organizationId] : [],
         restaurantIds,
@@ -58,7 +62,7 @@ export const requireAuth: MiddlewareHandler = async (c, next) => {
       const existingContext = getLoggerContext() ?? {};
 
       logger.debug(
-        { principalId: principal.id, role: principal.role, organizationId, restaurantId },
+        { principalId: principal.id, role: principal.role, franchiseId, organizationId, restaurantId },
         "AUTH: Token validated",
       );
 
@@ -67,6 +71,7 @@ export const requireAuth: MiddlewareHandler = async (c, next) => {
           ...existingContext,
           principalId: principal.id,
           role: principal.role,
+          franchiseId,
           organizationId,
           restaurantId,
         },
@@ -84,13 +89,15 @@ export const requireAuth: MiddlewareHandler = async (c, next) => {
   if (!session) throw Errors.unauthorized();
 
   const principal =
-    session.subjectType === "SUPER_ADMIN" && session.superAdminId
-      ? await authRepository.findSuperAdminById(session.superAdminId)
-      : session.subjectType === "ADMIN" && session.adminId
-        ? await authRepository.findAdminById(session.adminId)
-        : session.subjectType === "EMPLOYEE" && session.employeeId
-          ? await authRepository.findEmployeeById(session.employeeId)
-          : null;
+    session.subjectType === "FRANCHISE_STEWARD" && session.franchiseAdminId
+      ? await authRepository.findFranchiseAdminById(session.franchiseAdminId)
+      : session.subjectType === "SUPER_ADMIN" && session.superAdminId
+        ? await authRepository.findSuperAdminById(session.superAdminId)
+        : session.subjectType === "ADMIN" && session.adminId
+          ? await authRepository.findAdminById(session.adminId)
+          : session.subjectType === "EMPLOYEE" && session.employeeId
+            ? await authRepository.findEmployeeById(session.employeeId)
+            : null;
 
   if (!principal || principal.status !== "ACTIVE") throw Errors.userInactive();
 
@@ -99,6 +106,7 @@ export const requireAuth: MiddlewareHandler = async (c, next) => {
   const restaurantId = "restaurantId" in principal ? principal.restaurantId ?? undefined : undefined;
   const restaurantIds = restaurantId ? [restaurantId] : [];
   const organizationId = "organizationId" in principal ? principal.organizationId ?? undefined : undefined;
+  const franchiseId = "franchiseId" in principal ? principal.franchiseId ?? undefined : undefined;
   if (organizationId) {
     const organization = await authRepository.findOrganizationById(organizationId);
     if (!organization || organization.status !== "ACTIVE") {
@@ -116,6 +124,7 @@ export const requireAuth: MiddlewareHandler = async (c, next) => {
     status: principal.status,
     isActive: principal.status === "ACTIVE",
     permissions: [] as string[],
+    franchiseId,
     organizationId,
     organizationIds: organizationId ? [organizationId] : [],
     restaurantIds,
